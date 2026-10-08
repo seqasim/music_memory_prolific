@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Music Memory Task — TEST MODE</title>
+
+    <!-- jsPsych 7 core + stylesheet -->
+    <script src="https://unpkg.com/jspsych@7.3.4"></script>
+    <link href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css" rel="stylesheet" />
+
+    <!-- jsPsych plugins used by this experiment -->
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-video-keyboard-response@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-audio-keyboard-response@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-slider-response@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-html-form@1.0.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-call-function@1.1.3"></script>
+    <script src="lib/jspsych-7-pavlovia-2022.1.1.js"></script>
+
+    <style>
+      body {
+        background: #ffffff;
+        color: #111111;
+      }
+      #jspsych_target {
+        height: 100vh;
+      }
+      .jspsych-content {
+        max-width: 1000px;
+        font-size: 24px;
+      }
+      .jspsych-slider-labels {
+        font-size: 22px;
+      }
+      .jspsych-btn {
+        font-size: 22px;
+        padding: 10px 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Music Memory Task — Experimenter TEST MODE
+      ==========================================
+      Short session: 3 encoding trials (one per condition), 2 survey clips, 6 recall trials.
+      Data is saved with experiment name music_memory_online_TEST.
+
+      Alternative entry: index.html?test=<passphrase> (see CONFIG.testPassphrase in config.js)
+    -->
+    <div id="jspsych_target"></div>
+
+    <script>
+      window.TEST_MODE = true;
+    </script>
+
+    <!-- Project scripts (order matters) -->
+    <script src="js/config.js"></script>
+    <script src="js/stimuli_manifest.js"></script>
+    <script src="js/randomization.js"></script>
+    <script src="js/datasaver.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/encoding.js"></script>
+    <script src="js/survey.js"></script>
+    <script src="js/recall.js"></script>
+    <script src="js/experiment.js"></script>
+
+    <script>
+      const jsPsych = initJsPsych({
+        display_element: 'jspsych_target',
+        on_finish: function () {
+          document.getElementById('jspsych_target').innerHTML +=
+            '<p style="text-align:center;font-family:Arial;margin-top:24px;">Test session ended.</p>';
+        },
+      });
+      window.jsPsych = jsPsych;
+
+      if (window.location.protocol === 'file:') {
+        document.getElementById('jspsych_target').innerHTML =
+          '<div style="max-width:700px;margin:40px auto;font-family:Arial,sans-serif;">' +
+          '<h2>Cannot run from file://</h2>' +
+          '<p>Open a terminal in <code>online_version/</code> and run:</p>' +
+          '<pre style="background:#f4f4f4;padding:12px;">python3 -m http.server 8080</pre>' +
+          '<p>Then visit <code>http://localhost:8080/test.html</code></p></div>';
+      } else {
+        runExperiment();
+      }
+    </script>
+  </body>
+</html>
