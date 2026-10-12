@@ -20,7 +20,7 @@ The whole session runs in one sitting (about 55–70 minutes):
 | Task logic (encoding, survey, recall, audio check, randomization) | Complete and tested locally |
 | Tidy CSV output with localStorage dropout backup | Complete; `finalize()` stamps `completed_session = 1` |
 | Experimenter short test mode (`test.html`) | Complete |
-| Pavlovia data upload | Wired via vendored `lib/jspsych-7-pavlovia-2022.1.1.js` (`init`/`finish` on Pavlovia hosts) |
+| Pavlovia data upload | Wired via vendored `vendor/jspsych-7-pavlovia-2022.1.1.js` (`init`/`finish` on Pavlovia hosts) |
 | Prolific ID capture and completion redirect | Complete (set real `CONFIG.prolific.completionUrl` before going live) |
 | Desktop / keyboard guard | `CONFIG.requireDesktop = true` |
 | Stimulus files | 108 + 216 `.mp4` videos; 36 + 36 music `.mp3`; manifest generated for birth year 1993 |
@@ -82,7 +82,7 @@ music_memory_prolific/
   test.html               Experimenter short test session (~5 min), sets window.TEST_MODE
   README.md               This file
   .gitignore              .DS_Store, data/
-  lib/                    Vendored Pavlovia plugin for jsPsych 7
+  vendor/                 Vendored Pavlovia plugin for jsPsych 7 (not named lib/: Pavlovia reserves that path)
   js/
     config.js             All tunable settings: timing, trial counts, keys, text, data options
     stimuli_manifest.js   AUTO-GENERATED list of stimulus paths (do not hand-edit)
