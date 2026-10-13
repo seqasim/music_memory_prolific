@@ -115,6 +115,12 @@ const CONFIG = {
   /** Fixed slider width so rating bars do not resize with question text. */
   surveySliderWidthPx: 500,
 
+  /**
+   * How long to play each survey music clip (ms). Matches approximate encoding
+   * exposure (fixation + video ≈ 6 s); full MP3 files are longer.
+   */
+  surveyMusicMs: 6000,
+
   /** Questions shown after each music clip during the survey phase. */
   surveyQuestions: [
     { id: 'familiarity', text: 'How familiar are you with this music?' },
@@ -165,7 +171,7 @@ const CONFIG = {
       title: 'Encoding complete',
       text:
         'Great job! You have finished watching the videos.<br><br>' +
-        'Next you will hear music clips and answer a few short questions about each one.<br><br>' +
+        'Next you will hear each music clip again for about 6 seconds and answer a few short questions about each one.<br><br>' +
         'Press ENTER when you are ready to continue.',
     },
     beforeRecall: {
@@ -185,9 +191,26 @@ const CONFIG = {
   instructions: {
     welcome:
       '<h2>Welcome to the memory task</h2>' +
-      '<p>You will watch a series of short video clips. Try to remember them.</p>' +
-      '<p>Later you will be tested on whether you have seen each video before.</p>' +
-      '<p>Between videos, please look at the fixation cross (+).</p>' +
+      '<p>This study takes about <strong>55–70 minutes</strong> in one sitting. ' +
+      'Please use a <strong>desktop or laptop</strong> with a keyboard and working audio ' +
+      '(headphones or speakers). Phones and tablets will not work.</p>' +
+      '<p>The session has three parts:</p>' +
+      '<ol style="text-align:left;max-width:720px;margin:16px auto;">' +
+      '<li style="margin-bottom:12px;"><strong>Part 1 — Videos.</strong> ' +
+      'You will watch short video clips. Some play with music in the background. ' +
+      'Between clips, look at the fixation cross (+). ' +
+      'Try to remember the videos. You do not need to press any keys during this part.</li>' +
+      '<li style="margin-bottom:12px;"><strong>Part 2 — Music ratings.</strong> ' +
+      'You will hear again each piece of music that played with a video. ' +
+      'Each clip lasts about <strong>6 seconds</strong>. ' +
+      'Then you will answer short questions by moving a slider (you must move each slider before continuing).</li>' +
+      '<li style="margin-bottom:12px;"><strong>Part 3 — Memory test.</strong> ' +
+      'You will see videos and decide whether each is <strong>OLD</strong> (seen in Part 1) ' +
+      'or <strong>NEW</strong> (not seen before). ' +
+      '<strong>LEFT arrow</strong> = OLD &nbsp;&nbsp; <strong>RIGHT arrow</strong> = NEW.</li>' +
+      '</ol>' +
+      '<p>Before Part 1 and again before Part 2, there is a short audio check. ' +
+      'You will also see brief breaks between blocks. Press <strong>ENTER</strong> to advance instruction screens.</p>' +
       '<p>Press ENTER to continue.</p>',
 
     audioCheckIntro:
@@ -202,8 +225,8 @@ const CONFIG = {
 
     surveyIntro:
       '<h2>Music survey</h2>' +
-      '<p>You will hear music clips one at a time.</p>' +
-      '<p>For each clip, move the slider and press ENTER to submit your rating.</p>' +
+      '<p>You will hear music clips one at a time. Each clip plays for about <strong>6 seconds</strong>.</p>' +
+      '<p>After each clip, move the slider for every question and press ENTER (or Continue) to submit.</p>' +
       '<p>Press ENTER to begin.</p>',
 
     recallIntro:

@@ -20,7 +20,7 @@ During encoding, participants will view 108 short video clips organized into 9 b
 
 ### Music survey
 
-After encoding, participants will hear again each of the 72 music clips that accompanied videos during encoding (36 MEAM and 36 control clips). Each clip is played in full (approximately 15 seconds). Immediately afterward, participants will rate the clip on nine 1–5 scales: familiarity; liking; strength of memories evoked; self-relevance (thinking about oneself or one’s own life); how emotionally moving the song was; vividness of mentally reliving past experiences; how distracting the music was during the video; how stimulating or engaging the song was; and how novel or unexpected the song was. Participants must adjust each slider before submitting; ratings are advanced by Enter or an on-screen continue control.
+After encoding, participants will hear again each of the 72 music clips that accompanied videos during encoding (36 MEAM and 36 control clips). Each clip is played for approximately 6 seconds (the first portion of the audio file, matching approximate encoding exposure). Immediately afterward, participants will rate the clip on nine 1–5 scales: familiarity; liking; strength of memories evoked; self-relevance (thinking about oneself or one’s own life); how emotionally moving the song was; vividness of mentally reliving past experiences; how distracting the music was during the video; how stimulating or engaging the song was; and how novel or unexpected the song was. Participants must adjust each slider before submitting; ratings are advanced by Enter or an on-screen continue control.
 
 ### Recall (old/new recognition)
 

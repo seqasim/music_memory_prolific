@@ -48,7 +48,8 @@ function buildSurveyClipTimeline(trial, clipIndex, totalClips) {
     type: jsPsychAudioKeyboardResponse,
     stimulus: trial.musicPath,
     choices: 'NO_KEYS',
-    trial_ends_after_audio: true,
+    trial_ends_after_audio: false,
+    trial_duration: CONFIG.surveyMusicMs,
     prompt: wrapHtml(
       `<p><strong>Clip ${clipIndex} of ${totalClips}</strong></p>` +
         '<p style="font-size:28px;margin-top:24px;">♪ Playing music…</p>'

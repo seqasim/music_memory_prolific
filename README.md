@@ -40,8 +40,8 @@ See [Before the first Prolific run](#before-the-first-prolific-run) for the rema
 - **Encoding trial:** fixation cross (3000 ms) followed by the video (about 3 s, 342x256 h264, shown at
   800x450). If the trial has music, the clip starts at fixation onset and stops when the video ends.
   No response is required.
-- **Survey:** every music clip heard during encoding (36 MEAM + 36 control = 72) is replayed in full
-  (about 15 s), then rated on 9 slider questions (1–5, must move the slider, ENTER/Continue to submit):
+- **Survey:** every music clip heard during encoding (36 MEAM + 36 control = 72) is replayed for about
+  6 s (first portion of the clip), then rated on 9 slider questions (1–5, must move the slider, ENTER/Continue to submit):
   familiarity, liking, memory strength, self-relevance, emotionally moving, reliving, distraction
   (during the video), engagement, novelty.
 - **Recall:** 9 lists x 24 trials = 216 videos. Each list contains the 12 videos from the matching
@@ -313,6 +313,8 @@ Notes on the implementation:
 | "Not enough MEAM/control music files" | Fewer than 36 clips survive the birth-year filter; check `--birth-year` and the cohort folder |
 | Music does not play on the first trial | Browser autoplay policy; the entry form / ENTER press exists to unlock audio. Do not remove it |
 | No data on Pavlovia | Plugin not loaded, `finish` trial never reached, or project not in Piloting/Running with credits |
+| Pavlovia: unable to link PsychoJS library / `lib` File exists | Do not name any project folder `lib/`. This repo keeps the plugin under `vendor/`. Push that change, then retry Piloting |
+| Software platform UNKNOWN on Pavlovia | Common for manually pushed jsPsych repos; the dashboard may not let you set it. Piloting can still work once the `lib/` clash is fixed. If status still fails, recreate the experiment via Pavlovia **New** as type jsPsych and push into that empty repo |
 | Participant not returned to Prolific | `CONFIG.prolific.completionUrl` still `REPLACE_ME`, or redirect blocked; the fallback link covers the latter |
 | Wrong songs for the cohort | Manifest generated with the wrong `--birth-year`; regenerate |
 | Experiment slow to start | Expected: stimuli load per trial; only `audio_check.mp3` is preloaded |
