@@ -27,6 +27,8 @@ const DATA_COLUMNS = [
   'correct',
   'response',
   'rt_ms',
+  'mem_score',
+  'mem_alpha',
   'trial_onset_ms',
   'browser',
   'screen_width',
@@ -93,6 +95,8 @@ const DataSaver = {
         condition: trial.condition,
         video_file: trial.videoPath,
         music_file: trial.musicPath || '',
+        mem_score: trial.memScore ?? '',
+        mem_alpha: trial.memAlpha ?? '',
       });
     });
 
@@ -116,6 +120,9 @@ const DataSaver = {
         trial_num: trial.trialNum,
         video_file: trial.videoPath,
         is_old: trial.isOld ? 1 : 0,
+        condition: trial.encodingCondition || '',
+        mem_score: trial.memScore ?? '',
+        mem_alpha: trial.memAlpha ?? '',
       });
     });
 
@@ -141,6 +148,8 @@ const DataSaver = {
       correct: fields.correct ?? '',
       response: fields.response ?? '',
       rt_ms: fields.rt_ms ?? '',
+      mem_score: fields.mem_score ?? '',
+      mem_alpha: fields.mem_alpha ?? '',
       trial_onset_ms: Math.round(performance.now() - this.sessionStartMs),
     };
     this._appendRow(row);
@@ -215,6 +224,8 @@ const DataSaver = {
       correct: '',
       response: '',
       rt_ms: '',
+      mem_score: '',
+      mem_alpha: '',
       trial_onset_ms: '',
       row_type: '',
     };

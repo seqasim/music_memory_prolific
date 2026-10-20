@@ -66,6 +66,8 @@ async function validateStimuliReachable(manifest) {
     CONFIG.stimuli.audioCheck,
     manifest.encodingVideos[0],
     manifest.meamMusic[0] || null,
+    (CONFIG.encodingOrienting && CONFIG.encodingOrienting.labelsPath) || null,
+    (CONFIG.mementoMetaPath) || null,
   ].filter(Boolean);
 
   for (const path of samples) {
@@ -303,9 +305,23 @@ async function runExperiment() {
         );
       }
 
+      let mementoMeta = null;
+      try {
+        const metaPath = CONFIG.mementoMetaPath || 'stimuli/memento_video_meta.json';
+        const metaResponse = await fetch(metaPath);
+        if (metaResponse.ok) {
+          mementoMeta = await metaResponse.json();
+          window.MEMENTO_VIDEO_META = mementoMeta;
+        } else {
+          console.warn('Memento metadata unavailable:', metaPath, metaResponse.status);
+        }
+      } catch (error) {
+        console.warn('Memento metadata load failed:', error);
+      }
+
       let assignment;
       try {
-        assignment = buildAssignment(manifest);
+        assignment = buildAssignment(manifest, { mementoMeta });
       } catch (error) {
         showFatalScreen(`Could not build experiment: ${error.message}`);
         done();

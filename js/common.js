@@ -173,8 +173,17 @@ function buildTestVerificationHtml() {
   const surveyRatings = trialRows.filter(
     (r) => r.phase === 'survey' && r.question && r.question !== 'music_replay'
   ).length;
-  const recallResponses = trialRows.filter(
-    (r) => r.phase === 'recall' && r.response
+  const recallRecognition = trialRows.filter(
+    (r) => r.phase === 'recall' && (!r.question || r.question === '')
+  ).length;
+  const recallConfidence = trialRows.filter(
+    (r) => r.phase === 'recall' && r.question === 'confidence'
+  ).length;
+  const recallSource = trialRows.filter(
+    (r) => r.phase === 'recall' && r.question === 'source'
+  ).length;
+  const encodingOrienting = trialRows.filter(
+    (r) => r.phase === 'encoding' && r.question === 'person_count'
   ).length;
 
   const backupKey = `${CONFIG.data.localStoragePrefix}${DataSaver.participant}_${DataSaver.sessionStartIso}`;
@@ -188,13 +197,19 @@ function buildTestVerificationHtml() {
   const expectedRecall = CONFIG.numLists * CONFIG.recallTrialsPerList;
 
   const rows = [
-    ['Encoding trials logged', countByPhase.encoding || 0, `${expectedEncoding} expected`],
+    [
+      'Encoding orienting rows',
+      encodingOrienting,
+      `${expectedEncoding} expected (F/J person count)`,
+    ],
     [
       'Survey rating rows',
       surveyRatings,
       `${expectedSurveyRatings} expected (${CONFIG.surveyQuestions.length} per clip × ${CONFIG.numLists * surveyClipsPerList} clips)`,
     ],
-    ['Recall responses logged', recallResponses, `${expectedRecall} expected`],
+    ['Recall OLD/NEW rows', recallRecognition, `${expectedRecall} expected`],
+    ['Recall confidence rows', recallConfidence, `${expectedRecall} expected`],
+    ['Recall source rows (OLD only)', recallSource, '≤ recognition count; only after OLD'],
     ['localStorage backup', hasBackup ? 'yes' : 'no', 'should be yes'],
     ['Experiment name', CONFIG.data.experimentName, 'should end in _TEST'],
   ];

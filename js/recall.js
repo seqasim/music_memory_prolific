@@ -1,7 +1,8 @@
 /**
- * recall.js — Recall phase timeline (old/new recognition)
- * ========================================================
+ * recall.js — Recall phase timeline (old/new recognition + confidence + source)
+ * =============================================================================
  * 9 lists × 24 videos. LEFT = OLD, RIGHT = NEW (matches original PsychoPy task).
+ * After each old/new response: confidence (1/2/3). After OLD only: source (1/2/3).
  */
 
 /**
@@ -31,6 +32,39 @@ function recallResponseLabel(response) {
   const key = response?.toLowerCase();
   if (key === CONFIG.recallKeys.old.toLowerCase()) return 'old';
   if (key === CONFIG.recallKeys.new.toLowerCase()) return 'new';
+  return '';
+}
+
+/**
+ * Map confidence key (1/2/3) to label.
+ * @param {string} response
+ * @returns {string}
+ */
+function confidenceResponseLabel(response) {
+  const key = String(response ?? '');
+  return CONFIG.confidenceKeys[key] || '';
+}
+
+/**
+ * Map source key (1/2/3) to label.
+ * @param {string} response
+ * @returns {string}
+ */
+function sourceResponseLabel(response) {
+  const key = String(response ?? '');
+  return CONFIG.sourceKeys[key] || '';
+}
+
+/**
+ * Expected source label from encoding condition.
+ * meam → knew; control_music → did_not_know; no_music → no_music.
+ * @param {string} condition
+ * @returns {string}
+ */
+function expectedSourceLabel(condition) {
+  if (condition === 'meam') return 'knew';
+  if (condition === 'control_music') return 'did_not_know';
+  if (condition === 'no_music') return 'no_music';
   return '';
 }
 
@@ -89,13 +123,16 @@ function buildRecallTimeline(assignment, recallVideoPaths) {
 }
 
 /**
- * One recall trial: brief fixation, video, then OLD/NEW response + feedback.
+ * One recall trial: fixation → video+OLD/NEW → confidence → [source if OLD].
+ * Confidence and source are logged as separate rows (question column).
  * @param {object} trial
  * @returns {object}
  */
 function buildRecallTrial(trial) {
   const oldKey = CONFIG.recallKeys.old;
   const newKey = CONFIG.recallKeys.new;
+  const confidenceChoices = Object.keys(CONFIG.confidenceKeys);
+  const sourceChoices = Object.keys(CONFIG.sourceKeys);
 
   const fixation = {
     type: jsPsychHtmlKeyboardResponse,
@@ -109,6 +146,7 @@ function buildRecallTrial(trial) {
       trial_num: trial.trialNum,
       video_file: trial.videoPath,
       is_old: trial.isOld ? 1 : 0,
+      condition: trial.encodingCondition || '',
     },
   };
 
@@ -127,15 +165,20 @@ function buildRecallTrial(trial) {
       const correct =
         (trial.isOld && responseLabel === 'old') || (!trial.isOld && responseLabel === 'new');
 
+      data.recall_response = responseLabel;
+
       DataSaver.logTrial({
         phase: 'recall',
         list_num: trial.listNum,
         trial_num: trial.trialNum,
         video_file: trial.videoPath,
+        condition: trial.encodingCondition || '',
         is_old: trial.isOld ? 1 : 0,
         response: responseLabel,
         correct: correct ? 1 : 0,
         rt_ms: data.rt,
+        mem_score: trial.memScore ?? '',
+        mem_alpha: trial.memAlpha ?? '',
       });
     },
     data: {
@@ -145,29 +188,100 @@ function buildRecallTrial(trial) {
       trial_num: trial.trialNum,
       video_file: trial.videoPath,
       is_old: trial.isOld ? 1 : 0,
+      condition: trial.encodingCondition || '',
     },
   };
 
-  const responseFeedback = {
+  const confidence = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: () => {
       const last = jsPsych.data.get().last(1).values()[0];
-      const responseLabel = recallResponseLabel(last?.response);
-      return wrapHtml(buildRecallChoicePrompt(responseLabel));
+      const responseLabel = last?.recall_response || recallResponseLabel(last?.response);
+      return wrapHtml(buildRecallChoicePrompt(responseLabel) + CONFIG.confidencePrompt);
     },
-    choices: 'NO_KEYS',
-    trial_duration: CONFIG.recallFeedbackMs,
+    choices: confidenceChoices,
+    response_ends_trial: true,
+    on_finish: (data) => {
+      const confLabel = confidenceResponseLabel(data.response);
+      data.confidence_label = confLabel;
+      DataSaver.logTrial({
+        phase: 'recall',
+        list_num: trial.listNum,
+        trial_num: trial.trialNum,
+        video_file: trial.videoPath,
+        condition: trial.encodingCondition || '',
+        is_old: trial.isOld ? 1 : 0,
+        question: 'confidence',
+        response: confLabel,
+        rt_ms: data.rt,
+        mem_score: trial.memScore ?? '',
+        mem_alpha: trial.memAlpha ?? '',
+      });
+    },
     data: {
       phase: 'recall',
-      subphase: 'response_feedback',
+      subphase: 'confidence',
       list_num: trial.listNum,
       trial_num: trial.trialNum,
       video_file: trial.videoPath,
+      is_old: trial.isOld ? 1 : 0,
+      condition: trial.encodingCondition || '',
+    },
+  };
+
+  const source = {
+    timeline: [
+      {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: wrapHtml(CONFIG.sourcePrompt),
+        choices: sourceChoices,
+        response_ends_trial: true,
+        on_finish: (data) => {
+          const srcLabel = sourceResponseLabel(data.response);
+          const expected = expectedSourceLabel(trial.encodingCondition);
+          const sourceCorrect =
+            expected && srcLabel ? (srcLabel === expected ? 1 : 0) : '';
+
+          DataSaver.logTrial({
+            phase: 'recall',
+            list_num: trial.listNum,
+            trial_num: trial.trialNum,
+            video_file: trial.videoPath,
+            condition: trial.encodingCondition || '',
+            is_old: trial.isOld ? 1 : 0,
+            question: 'source',
+            response: srcLabel,
+            correct: sourceCorrect,
+            rt_ms: data.rt,
+            mem_score: trial.memScore ?? '',
+            mem_alpha: trial.memAlpha ?? '',
+          });
+        },
+        data: {
+          phase: 'recall',
+          subphase: 'source',
+          list_num: trial.listNum,
+          trial_num: trial.trialNum,
+          video_file: trial.videoPath,
+          is_old: trial.isOld ? 1 : 0,
+          condition: trial.encodingCondition || '',
+        },
+      },
+    ],
+    conditional_function: () => {
+      const lastRecognition = jsPsych.data
+        .get()
+        .filter({ phase: 'recall', subphase: 'recognition' })
+        .last(1)
+        .values()[0];
+      const responseLabel =
+        lastRecognition?.recall_response || recallResponseLabel(lastRecognition?.response);
+      return responseLabel === 'old';
     },
   };
 
   return {
-    timeline: [fixation, videoAndResponse, responseFeedback],
+    timeline: [fixation, videoAndResponse, confidence, source],
   };
 }
 
@@ -175,4 +289,7 @@ if (typeof window !== 'undefined') {
   window.buildRecallTimeline = buildRecallTimeline;
   window.buildRecallChoicePrompt = buildRecallChoicePrompt;
   window.recallResponseLabel = recallResponseLabel;
+  window.confidenceResponseLabel = confidenceResponseLabel;
+  window.sourceResponseLabel = sourceResponseLabel;
+  window.expectedSourceLabel = expectedSourceLabel;
 }

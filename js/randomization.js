@@ -61,16 +61,35 @@ function basenameNoExt(path) {
 }
 
 /**
+ * Look up Memento memorability fields for a video path.
+ * @param {string} videoPath
+ * @param {object|null} mementoMeta
+ * @returns {{ memScore: number|string, memAlpha: number|string }}
+ */
+function mementoFieldsForVideo(videoPath, mementoMeta) {
+  if (!mementoMeta) return { memScore: '', memAlpha: '' };
+  const base = videoPath.split('/').pop();
+  const entry = mementoMeta[videoPath] || mementoMeta[base] || null;
+  if (!entry || typeof entry !== 'object') return { memScore: '', memAlpha: '' };
+  return {
+    memScore: entry.mem_score ?? '',
+    memAlpha: entry.alpha ?? '',
+  };
+}
+
+/**
  * Create the full session assignment.
  *
  * @param {object} manifest - STIMULI_MANIFEST object
  * @param {object} options
  * @param {number} options.birthYear
  * @param {function} [options.rng] - seeded or Math.random
+ * @param {object} [options.mementoMeta] - stimuli/memento_video_meta.json
  * @returns {object} assignment
  */
 function buildAssignment(manifest, options = {}) {
   const rng = options.rng || Math.random;
+  const mementoMeta = options.mementoMeta || (typeof window !== 'undefined' ? window.MEMENTO_VIDEO_META : null) || null;
   const numLists = CONFIG.numLists;
   const perList = CONFIG.encodingTrialsPerList;
   const recallPerList = CONFIG.recallTrialsPerList;
@@ -147,14 +166,22 @@ function buildAssignment(manifest, options = {}) {
         });
       }
 
+      const mem = mementoFieldsForVideo(videoPath, mementoMeta);
       encodingTrials.push({
         listNum: listIndex + 1,
         trialNum: trialIndex + 1,
         condition,
         videoPath,
         musicPath,
+        memScore: mem.memScore,
+        memAlpha: mem.memAlpha,
       });
     });
+  });
+
+  const encodingConditionByVideo = {};
+  encodingTrials.forEach((trial) => {
+    encodingConditionByVideo[trial.videoPath] = trial.condition;
   });
 
   const recallTrials = [];
@@ -166,11 +193,15 @@ function buildAssignment(manifest, options = {}) {
       isOld: encodingBasenames.has(basenameNoExt(videoPath)),
     }));
     combined.forEach((trial, trialIndex) => {
+      const mem = mementoFieldsForVideo(trial.videoPath, mementoMeta);
       recallTrials.push({
         listNum: trial.listNum,
         trialNum: trialIndex + 1,
         videoPath: trial.videoPath,
         isOld: trial.isOld,
+        encodingCondition: trial.isOld ? encodingConditionByVideo[trial.videoPath] || '' : '',
+        memScore: mem.memScore,
+        memAlpha: mem.memAlpha,
       });
     });
   });
@@ -194,6 +225,7 @@ if (typeof window !== 'undefined') {
   window.shuffleArray = shuffleArray;
   window.chunkArray = chunkArray;
   window.buildAssignment = buildAssignment;
+  window.mementoFieldsForVideo = mementoFieldsForVideo;
 }
 
 /**

@@ -25,9 +25,11 @@ Source of the copy (read-only; do not edit):
 | Area | State |
 |------|-------|
 | Encoding / survey / recall / audio check / randomization | Complete; runs locally via `python3 -m http.server` |
+| SRE revisions (confidence, source, survey items, person-count orienting) | Complete — see `docs/PSYCHOPY_PORTING.md`, `docs/REVIEWER_CRITIQUE_RESPONSE.md` |
+| Memento10k metadata sidecar (`mem_score` / captions) | Complete — `stimuli/memento_video_meta.json` via `tools/export_memento_meta.py` |
 | Tidy CSV + localStorage backup | Complete; `finalize()` stamps `completed_session = 1` on all rows |
 | Experimenter short test (`test.html`) | Complete |
-| Pavlovia data upload | Wired — vendored `lib/jspsych-7-pavlovia-2022.1.1.js`, loaded from `index.html` / `test.html`; `init`/`finish` run on `*.pavlovia.org` |
+| Pavlovia data upload | Wired — vendored `vendor/jspsych-7-pavlovia-2022.1.1.js`, loaded from `index.html` / `test.html`; `init`/`finish` run on `*.pavlovia.org` |
 | Prolific ID capture + completion redirect | Complete — URL params, birth-year-only form when PID present, completion screen after `finish` with redirect + fallback link |
 | Desktop guard | `CONFIG.requireDesktop = true`; blocks phones/tablets |
 | Stimulus tooling | Standalone: `setup_stimuli.sh` copies from an explicit source folder; `generate_manifest.py` uses repo `stimuli/` only |
@@ -69,7 +71,7 @@ python3 -m http.server 8080
 |------|------|
 | `index.html` | Participant entry; loads jsPsych + Pavlovia plugin + project scripts; calls `runExperiment()` |
 | `test.html` | Experimenter short session; sets `window.TEST_MODE = true` |
-| `lib/jspsych-7-pavlovia-2022.1.1.js` | Vendored Pavlovia jsPsych 7 plugin |
+| `vendor/jspsych-7-pavlovia-2022.1.1.js` | Vendored Pavlovia jsPsych 7 plugin (folder must not be named `lib/`) |
 | `js/config.js` | Timing, trial counts, keys, instructions, survey questions, Prolific/data options, test overrides |
 | `js/stimuli_manifest.js` | Auto-generated file list (do not hand-edit) |
 | `js/randomization.js` | Per-participant assignment (lists, conditions, music, lures) |

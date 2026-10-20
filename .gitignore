@@ -1,2 +1,4 @@
 .DS_Store
 data/
+# Local clone of the Pavlovia GitLab project (separate git repo)
+music-memory-prolific/
