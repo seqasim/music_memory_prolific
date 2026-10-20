@@ -50,7 +50,7 @@ def main() -> None:
     assert sum(test_conditions.values()) == test_encoding_per_list
     assert test_recall_per_list == test_encoding_per_list * 2
     expected_survey = test_conditions["meam"] + test_conditions["control_music"]
-    survey_questions = 9
+    survey_questions = 12
     print("smoke_test OK (test mode design)")
     print("  encoding trials:", test_num_lists * test_encoding_per_list)
     print("  survey clips:", expected_survey)

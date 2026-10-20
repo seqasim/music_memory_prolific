@@ -5,11 +5,11 @@ experiments (`DIODE_music_memory_{ENCODING,SURVEY,RECALL}.psyexp`) for online da
 This folder is a standalone copy of `Music_Memory/MasterVersion/online_version` and is intended to be
 the root of a **Pavlovia (GitLab) repository** whose run link is distributed through **Prolific**.
 
-The whole session runs in one sitting (about 55–70 minutes):
+The whole session runs in one sitting (about 75–90 minutes):
 
-1. **Encoding** — watch 108 short video clips; two thirds are accompanied by music.
-2. **Survey** — hear each of the 72 music clips again and rate it on 9 scales.
-3. **Recall** — old/new recognition on 216 videos (108 seen, 108 lures).
+1. **Encoding** — watch 108 short video clips; two thirds are accompanied by music; press F/J for person count during each video.
+2. **Survey** — hear each of the 72 music clips again and answer 12 questions (sliders, Yes/No, dropdown).
+3. **Recall** — old/new recognition on 216 videos (108 seen, 108 lures), then confidence; source memory after OLD responses.
 
 ---
 
@@ -39,15 +39,16 @@ See [Before the first Prolific run](#before-the-first-prolific-run) for the rema
   4 `control_music` trials, shuffled within the list.
 - **Encoding trial:** fixation cross (3000 ms) followed by the video (about 3 s, 342x256 h264, shown at
   800x450). If the trial has music, the clip starts at fixation onset and stops when the video ends.
-  No response is required.
+  During the video the participant presses **F = one person or fewer** or **J = more than one person**
+  (does not end the trial). Person-count labels live in `stimuli/encoding_video_labels.json`
+  (from Memento captions; confirm before production).
 - **Survey:** every music clip heard during encoding (36 MEAM + 36 control = 72) is replayed for about
-  6 s (first portion of the clip), then rated on 9 slider questions (1–5, must move the slider, ENTER/Continue to submit):
-  familiarity, liking, memory strength, self-relevance, emotionally moving, reliving, distraction
-  (during the video), engagement, novelty.
+  6 s, then answered with 12 items: familiarity; specific memory (Yes/No); reliving; self-relevance;
+  age first heard (dropdown); recent exposure; earworm; liking; valence; arousal; distraction; novelty.
 - **Recall:** 9 lists x 24 trials = 216 videos. Each list contains the 12 videos from the matching
   encoding list plus 12 never-seen lures, shuffled. Fixation 750 ms, then the video; the participant
-  presses **Left arrow = OLD** or **Right arrow = NEW** (during or after the video), followed by a
-  500 ms highlight of the chosen answer.
+  presses **Left arrow = OLD** or **Right arrow = NEW**, then confidence (**1 = Sure, 2 = Maybe, 3 = Guess**).
+  After OLD only: source memory (**1 = No music, 2 = Music you knew, 3 = Music you did not know**).
 - **Audio check:** before encoding and again before the survey the participant hears the word "dog",
   confirms they heard it (Y/N, replay on N) and types it. The block loops until typed correctly.
 - **Breaks:** self-paced instruction screens between phases and at the start of each list; ENTER advances.
@@ -99,7 +100,15 @@ music_memory_prolific/
     retrieval_videos/     216 x .mp4  (~36 MB; 108 of them are also encoding videos, 108 are lures)
     music_meam/           36 x Cut_YYYY_n (.wav or .mp3; see "Music files")
     music_control/        36 x Cut_YYYY_n (.wav or .mp3; see "Music files")
+    encoding_video_labels.json  Person-count labels (one_or_fewer / multiple / ambiguous)
+    encoding_video_labels.auto.json  Auto draft from Memento (tools/build_encoding_labels.py)
+    memento_video_meta.json     Memento10k mem_score, alpha, captions, action_labels
+  docs/
+    PSYCHOPY_PORTING.md   How to mirror these changes in the PsychoPy task
+    REVIEWER_CRITIQUE_RESPONSE.md  Critique → task-change mapping
   tools/
+    export_memento_meta.py      Build memento_video_meta.json from the local Memento DB
+    build_encoding_labels.py    Draft person-count labels from Memento captions
     setup_stimuli.sh      Copy stimuli from an explicit source folder; regenerate manifest
     convert_audio.sh      Legacy ffmpeg WAV -> MP3 helper; not used (conversion is manual)
     generate_manifest.py  Writes js/stimuli_manifest.js (accepts .mp3 and .wav)
@@ -228,7 +237,7 @@ Results appear in the project's `data/` folder on GitLab and in the dashboard do
    link is always shown in case the redirect is blocked.
 3. **Device and prescreening:** restrict to **desktop** (arrow keys are required), require **audio**
    in the study description, and set the **age** range to match the music cohort (see above). Set the
-   estimated time to about 60 minutes and price accordingly.
+   estimated time to about 80–90 minutes and price accordingly.
 4. **Pilot checklist** before publishing:
    - Preview the study from Prolific; confirm the URL contains `PROLIFIC_PID`.
    - Complete a `?test=rutgers2026` run via the Pavlovia pilot link; confirm the CSV arrives on Pavlovia
@@ -251,9 +260,10 @@ Output is a tidy CSV, one row per event. Columns (`DATA_COLUMNS` in `js/datasave
 | `phase` | `audio_check`, `encoding`, `survey`, `recall` |
 | `list_num`, `trial_num`, `condition` | Position and music condition (`no_music`, `meam`, `control_music`) |
 | `video_file`, `music_file` | Stimulus paths |
-| `question` | Survey: question id (`familiarity`, ...) or `music_replay`; audio check: `typed_word` |
-| `is_old`, `correct` | Recall: 1 = old video; 1 = correct response. `correct` also used for the audio check |
+| `question` | Survey: question id or `music_replay`; encoding: `person_count`; recall: `confidence` / `source`; audio check: `typed_word` |
+| `is_old`, `correct` | Recall recognition: 1 = old video; 1 = correct old/new. Also used for source scoring, encoding orienting, and the audio check |
 | `response`, `rt_ms` | Response label/value and reaction time (ms from stimulus onset) |
+| `mem_score`, `mem_alpha` | Memento10k normative memorability and decay (encoding / recall rows) |
 | `trial_onset_ms` | ms since session start |
 | `browser`, `screen_width`, `screen_height`, `focus_lost_count` | Environment and attention proxies |
 | `checkpoint_reason` | Reserved for checkpoint rows |
@@ -262,9 +272,12 @@ Notes for analysis:
 
 - The Pavlovia CSV also contains the raw rows jsPsych itself records for every plugin trial
   (fixations, instruction screens, etc.). Keep only rows where `row_type` is non-empty.
-- Recall accuracy: rows with `phase = recall`; hits are `is_old = 1 & response = old`, false alarms are
-  `is_old = 0 & response = old`. Condition of an old video comes from its `assignment_encoding` row.
-- Survey ratings: `phase = survey`, `question != music_replay`; `response` is the 1–5 slider value.
+- Recall accuracy: rows with `phase = recall` and empty `question`; hits are `is_old = 1 & response = old`, false alarms are
+  `is_old = 0 & response = old`. Condition of an old video is in `condition` (also on `assignment_recall`).
+- Confidence: `phase = recall`, `question = confidence`; `response` is `sure` / `maybe` / `guess`.
+- Source: `phase = recall`, `question = source`; `response` is `no_music` / `knew` / `did_not_know`; `correct` scored vs encoding condition.
+- Encoding orienting: `phase = encoding`, `question = person_count`; `response` is `one_or_fewer` / `multiple`; `correct` blank when the label is `ambiguous`.
+- Survey ratings: `phase = survey`, `question != music_replay`; slider responses are 1–5; Yes/No and dropdown use string labels.
 
 ---
 
@@ -275,6 +288,9 @@ Notes for analysis:
 | Fixation durations, list/trial counts, conditions per list | `js/config.js` top section |
 | Instruction and break text | `js/config.js` > `instructions`, `breaks` |
 | Survey questions, scale range, slider width | `js/config.js` > `surveyQuestions`, `surveyScale*` |
+| Confidence / source / person-count keys | `js/config.js` > `confidenceKeys`, `sourceKeys`, `encodingOrienting` |
+| Person-count labels | `stimuli/encoding_video_labels.json` (confirm before production) |
+| Memento memorability sidecar | `stimuli/memento_video_meta.json` via `tools/export_memento_meta.py` |
 | Response keys (OLD/NEW, continue) | `js/config.js` > `recallKeys`, `continueKeys` |
 | Prolific completion URL, desktop requirement | `js/config.js` > `prolific`, `requireDesktop` |
 | Test-mode passphrase and trial counts | `js/config.js` > `testPassphrase`, `TEST_OVERRIDES` |
@@ -325,3 +341,7 @@ Notes on the implementation:
 
 Based on the Rutgers / Mount Sinai Music Memory PsychoPy task (`DIODE_music_memory_*.psyexp`).
 Online version: jsPsych 7.3.4.
+
+Video clips are from **Memento10k** ([Newman et al., ECCV 2020](http://memento.csail.mit.edu/));
+normative memorability (`mem_score`, `alpha`) and captions are exported via
+`tools/export_memento_meta.py` for analysis covariates.

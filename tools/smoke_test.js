@@ -121,10 +121,103 @@ try {
   if (testContext.recallResponseLabel('ArrowRight') !== 'new') {
     throw new Error('recallResponseLabel should map ArrowRight to new');
   }
-  if (testContext.CONFIG.surveyQuestions.length !== 9) {
-    throw new Error('Expected 9 survey questions');
+  if (testContext.confidenceResponseLabel('1') !== 'sure') {
+    throw new Error('confidenceResponseLabel should map 1 to sure');
   }
-  console.log('smoke_test OK (recall key mapping + survey questions)');
+  if (testContext.sourceResponseLabel('2') !== 'knew') {
+    throw new Error('sourceResponseLabel should map 2 to knew');
+  }
+  if (testContext.expectedSourceLabel('meam') !== 'knew') {
+    throw new Error('expectedSourceLabel(meam) should be knew');
+  }
+  if (testContext.expectedSourceLabel('control_music') !== 'did_not_know') {
+    throw new Error('expectedSourceLabel(control_music) should be did_not_know');
+  }
+  if (testContext.expectedSourceLabel('no_music') !== 'no_music') {
+    throw new Error('expectedSourceLabel(no_music) should be no_music');
+  }
+
+  const oldWithCondition = testAssignment.recallTrials.filter((t) => t.isOld);
+  if (!oldWithCondition.every((t) => t.encodingCondition)) {
+    throw new Error('Old recall trials should carry encodingCondition');
+  }
+  if (testAssignment.recallTrials.some((t) => !t.isOld && t.encodingCondition)) {
+    throw new Error('Lure recall trials should not carry encodingCondition');
+  }
+
+  if (testContext.CONFIG.surveyQuestions.length !== 12) {
+    throw new Error(`Expected 12 survey questions, got ${testContext.CONFIG.surveyQuestions.length}`);
+  }
+  const surveyTypes = Object.fromEntries(
+    testContext.CONFIG.surveyQuestions.map((q) => [q.id, q.type || 'slider'])
+  );
+  if (surveyTypes.specific_memory !== 'yes_no') {
+    throw new Error('specific_memory should be yes_no');
+  }
+  if (surveyTypes.age_first_heard !== 'dropdown') {
+    throw new Error('age_first_heard should be dropdown');
+  }
+  for (const dropped of ['memory_strength', 'engagement', 'emotionally_moving']) {
+    if (surveyTypes[dropped]) {
+      throw new Error(`Survey should not include dropped item ${dropped}`);
+    }
+  }
+  if (!testContext.CONFIG.encodingOrienting || testContext.CONFIG.encodingOrienting.oneKey !== 'f') {
+    throw new Error('CONFIG.encodingOrienting.oneKey should be f');
+  }
+  if (testContext.CONFIG.encodingOrienting.multipleKey !== 'j') {
+    throw new Error('CONFIG.encodingOrienting.multipleKey should be j');
+  }
+  console.log('smoke_test OK (recall confidence/source + survey + orienting config)');
+
+  loadScript('js/encoding.js', testContext);
+  if (testContext.encodingOrientingLabel('F') !== 'one_or_fewer') {
+    throw new Error('encodingOrientingLabel(F) should be one_or_fewer');
+  }
+  if (testContext.encodingOrientingLabel('j') !== 'multiple') {
+    throw new Error('encodingOrientingLabel(j) should be multiple');
+  }
+  if (testContext.encodingOrientingCorrect('one_or_fewer', 'one_or_fewer') !== 1) {
+    throw new Error('orienting correct should be 1 for matching labels');
+  }
+  if (testContext.encodingOrientingCorrect('one_or_fewer', 'ambiguous') !== '') {
+    throw new Error('orienting correct should be blank for ambiguous scenes');
+  }
+  console.log('smoke_test OK (encoding orienting helpers)');
+
+  const labelsPath = path.join(root, 'stimuli/encoding_video_labels.json');
+  if (!fs.existsSync(labelsPath)) {
+    throw new Error('Missing stimuli/encoding_video_labels.json');
+  }
+  const labelsJson = JSON.parse(fs.readFileSync(labelsPath, 'utf8'));
+  const encodingBasenames = context.STIMULI_MANIFEST.encodingVideos.map((p) => p.split('/').pop());
+  for (const base of encodingBasenames) {
+    if (!labelsJson[base]) {
+      throw new Error(`encoding_video_labels.json missing ${base}`);
+    }
+    if (!['one_or_fewer', 'multiple', 'ambiguous'].includes(labelsJson[base])) {
+      throw new Error(`Invalid label for ${base}: ${labelsJson[base]}`);
+    }
+  }
+  console.log('smoke_test OK (encoding video labels cover all encoding videos)');
+
+  const mementoPath = path.join(root, 'stimuli/memento_video_meta.json');
+  if (!fs.existsSync(mementoPath)) {
+    throw new Error('Missing stimuli/memento_video_meta.json');
+  }
+  const mementoJson = JSON.parse(fs.readFileSync(mementoPath, 'utf8'));
+  for (const base of encodingBasenames) {
+    if (!mementoJson[base] || mementoJson[base].mem_score == null) {
+      throw new Error(`memento_video_meta.json missing mem_score for ${base}`);
+    }
+  }
+  const assignmentWithMeta = context.buildAssignment(context.STIMULI_MANIFEST, {
+    mementoMeta: mementoJson,
+  });
+  if (!assignmentWithMeta.encodingTrials.every((t) => t.memScore !== '' && t.memScore != null)) {
+    throw new Error('buildAssignment should stamp memScore on encoding trials');
+  }
+  console.log('smoke_test OK (memento metadata stamped on assignment)');
 
   // DataSaver: prolific columns + finalize stamps completed_session
   const dataContext = makeContext();
@@ -132,7 +225,7 @@ try {
   loadScript('js/datasaver.js', dataContext);
 
   const cols = dataContext.DATA_COLUMNS;
-  for (const col of ['prolific_pid', 'study_id', 'session_id']) {
+  for (const col of ['prolific_pid', 'study_id', 'session_id', 'mem_score', 'mem_alpha']) {
     if (!cols.includes(col)) {
       throw new Error(`DATA_COLUMNS missing ${col}`);
     }
