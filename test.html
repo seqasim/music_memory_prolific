@@ -13,7 +13,6 @@
     <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-video-keyboard-response@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-audio-keyboard-response@1.1.3"></script>
-    <script src="https://unpkg.com/@jspsych/plugin-html-slider-response@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-survey-html-form@1.0.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.3"></script>
@@ -32,12 +31,46 @@
         max-width: 1000px;
         font-size: 24px;
       }
-      .jspsych-slider-labels {
-        font-size: 22px;
-      }
       .jspsych-btn {
         font-size: 22px;
         padding: 10px 20px;
+      }
+      .orient-choice {
+        border: 4px solid transparent;
+        padding: 14px 28px;
+        border-radius: 8px;
+        display: inline-block;
+      }
+      .orient-choice.selected {
+        border-color: #111111;
+        background: #f5f5f5;
+      }
+      .survey-timer-track {
+        width: 520px;
+        max-width: 90%;
+        height: 8px;
+        margin: 8px auto 0;
+        background: #e6e6e6;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .survey-timer-bar {
+        height: 100%;
+        width: 100%;
+        background: #111111;
+        animation-name: survey-timer-shrink;
+        animation-timing-function: linear;
+        animation-fill-mode: forwards;
+      }
+      @keyframes survey-timer-shrink {
+        from { width: 100%; }
+        to { width: 0%; }
+      }
+      @media print {
+        #consent-text {
+          max-height: none !important;
+          overflow: visible !important;
+        }
       }
     </style>
   </head>
@@ -62,6 +95,7 @@
     <script src="js/randomization.js"></script>
     <script src="js/datasaver.js"></script>
     <script src="js/common.js"></script>
+    <script src="js/consent.js"></script>
     <script src="js/encoding.js"></script>
     <script src="js/survey.js"></script>
     <script src="js/recall.js"></script>

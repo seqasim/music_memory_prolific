@@ -140,7 +140,10 @@ const CONFIG = {
     labelsPath: 'stimuli/encoding_video_labels.json',
     prompt:
       '<p style="margin-top:12px;font-size:22px;">' +
-      '<strong>F</strong> = One person or fewer &nbsp;&nbsp; <strong>J</strong> = More than one person</p>',
+      '<span id="orient-one" class="orient-choice" style="margin-right:48px;">' +
+      '<strong>F</strong> = One person or fewer</span>' +
+      '<span id="orient-multiple" class="orient-choice">' +
+      '<strong>J</strong> = More than one person</span></p>',
   },
 
   /** Memento10k memorability / caption sidecar (analysis covariates; not shown). */
@@ -153,14 +156,11 @@ const CONFIG = {
   // Survey (music ratings)
   // -------------------------------------------------------------------------
 
-  /** Slider scale minimum and maximum (1–5 in original). */
-  surveyScaleMin: 1,
-  surveyScaleMax: 5,
-  surveyScaleStep: 1,
-  surveyDefaultValue: 3,
+  /** Number keys for each survey item (1–5). */
+  surveyResponseKeys: ['1', '2', '3', '4', '5'],
 
-  /** Fixed slider width so rating bars do not resize with question text. */
-  surveySliderWidthPx: 500,
+  /** Auto-advance each survey question after this long, answered or not. */
+  surveyQuestionTimeoutMs: 3000,
 
   /**
    * How long to play each survey music clip (ms). Matches approximate encoding
@@ -170,89 +170,33 @@ const CONFIG = {
 
   /**
    * Questions shown after each music clip during the survey phase.
-   * type: 'slider' (default) | 'yes_no' | 'dropdown'
-   * labels: optional end-point / tick labels for sliders
-   * options: required for dropdown (value + label)
+   * type: 'key_scale' — press 1–5; unanswered items time out.
+   * labels: five tick labels (ends carry the anchors).
    */
   surveyQuestions: [
     {
       id: 'familiarity',
-      type: 'slider',
-      text: 'How familiar are you with this music?',
+      type: 'key_scale',
+      text: 'How familiar is this song?',
       labels: ['Not at all', '', '', '', 'Extremely'],
     },
     {
-      id: 'specific_memory',
-      type: 'yes_no',
-      text: 'Did this song bring back a specific memory from your own life?',
-    },
-    {
-      id: 'reliving',
-      type: 'slider',
-      text: 'How vividly did you mentally relive past experiences while hearing this song?',
-      labels: ['Not at all', '', '', '', 'Extremely'],
+      id: 'autobio_memory',
+      type: 'key_scale',
+      text: 'Did this song bring back memories from your own life?',
+      labels: ['None', '', '', '', 'Vivid, specific memory'],
     },
     {
       id: 'self_relevance',
-      type: 'slider',
-      text: 'While listening to this song, how much were you thinking about yourself or your own life?',
-      labels: ['Not at all', '', '', '', 'Extremely'],
-    },
-    {
-      id: 'age_first_heard',
-      type: 'dropdown',
-      text: 'Roughly how old were you when you first heard this song?',
-      options: [
-        { value: 'never', label: 'Never heard it' },
-        { value: 'under_10', label: 'Under 10' },
-        { value: '10_14', label: '10–14' },
-        { value: '15_19', label: '15–19' },
-        { value: '20_24', label: '20–24' },
-        { value: '25_29', label: '25–29' },
-        { value: '30_plus', label: '30+' },
-      ],
-    },
-    {
-      id: 'recent_exposure',
-      type: 'slider',
-      text: 'How often have you heard this song in the past year?',
-      labels: ['Never', '', '', '', 'Very often'],
-    },
-    {
-      id: 'earworm',
-      type: 'slider',
-      text: 'How catchy is this song (likely to get stuck in your head)?',
-      labels: ['Not at all', '', '', '', 'Extremely'],
+      type: 'key_scale',
+      text: 'How much did this song make you think about yourself?',
+      labels: ['Not at all', '', '', '', 'Very much'],
     },
     {
       id: 'liking',
-      type: 'slider',
-      text: 'How much do you like this music?',
-      labels: ['Not at all', '', '', '', 'Extremely'],
-    },
-    {
-      id: 'valence',
-      type: 'slider',
-      text: 'How pleasant or unpleasant did this song feel?',
-      labels: ['Unpleasant', '', '', '', 'Pleasant'],
-    },
-    {
-      id: 'arousal',
-      type: 'slider',
-      text: 'How calming or energizing did this song feel?',
-      labels: ['Calming', '', '', '', 'Energizing'],
-    },
-    {
-      id: 'distraction',
-      type: 'slider',
-      text: 'During the video, how distracting did you find the music?',
-      labels: ['Not at all', '', '', '', 'Extremely'],
-    },
-    {
-      id: 'novelty',
-      type: 'slider',
-      text: 'How novel or unexpected did you find this song?',
-      labels: ['Not at all', '', '', '', 'Extremely'],
+      type: 'key_scale',
+      text: 'How much do you like this song?',
+      labels: ['Not at all', '', '', '', 'Very much'],
     },
   ],
 
@@ -287,18 +231,20 @@ const CONFIG = {
       title: 'Encoding complete',
       text:
         'Great job! You have finished watching the videos.<br><br>' +
-        'Next you will hear each music clip again for about 6 seconds and answer a few short questions about each one.<br><br>' +
-        'Press ENTER when you are ready to continue.',
-    },
-    beforeRecall: {
-      title: 'Short break',
-      text:
-        'You are about to begin the memory test.<br><br>' +
-        'You will see videos and decide whether each one is OLD (seen before) or NEW (not seen before).<br><br>' +
+        'Next is the memory test. You will see videos and decide whether each one is ' +
+        'OLD (seen before) or NEW (not seen before).<br><br>' +
         'Use the LEFT arrow for OLD and the RIGHT arrow for NEW.<br><br>' +
         'After each decision you will rate how sure you are (1 = Sure, 2 = Maybe, 3 = Guess). ' +
         'If you say OLD, you will also answer whether there was music with that video.<br><br>' +
         'Press ENTER when you are ready.',
+    },
+    afterRecall: {
+      title: 'Memory test complete',
+      text:
+        'Last part: you will hear each music clip again for about 6 seconds and answer four short questions about each one.<br><br>' +
+        'Press a number key from <strong>1</strong> to <strong>5</strong>. ' +
+        'Each question moves on after <strong>3 seconds</strong>.<br><br>' +
+        'Press ENTER when you are ready to continue.',
     },
   },
 
@@ -309,7 +255,7 @@ const CONFIG = {
   instructions: {
     welcome:
       '<h2>Welcome to the memory task</h2>' +
-      '<p>This study takes about <strong>75–90 minutes</strong> in one sitting. ' +
+      '<p>This study takes about <strong>60 minutes</strong> in one sitting. ' +
       'Please use a <strong>desktop or laptop</strong> with a keyboard and working audio ' +
       '(headphones or speakers). Phones and tablets will not work.</p>' +
       '<p>The session has three parts:</p>' +
@@ -320,18 +266,18 @@ const CONFIG = {
       'While each video plays, press <strong>F</strong> if there is <strong>one person or fewer</strong> ' +
       'or <strong>J</strong> if there is <strong>more than one person</strong> (count people only). ' +
       'Try to remember the videos.</li>' +
-      '<li style="margin-bottom:12px;"><strong>Part 2 — Music ratings.</strong> ' +
-      'You will hear again each piece of music that played with a video. ' +
-      'Each clip lasts about <strong>6 seconds</strong>. ' +
-      'Then you will answer short questions (sliders, Yes/No, or a dropdown). ' +
-      'You must answer every question before continuing.</li>' +
-      '<li style="margin-bottom:12px;"><strong>Part 3 — Memory test.</strong> ' +
+      '<li style="margin-bottom:12px;"><strong>Part 2 — Memory test.</strong> ' +
       'You will see videos and decide whether each is <strong>OLD</strong> (seen in Part 1) ' +
       'or <strong>NEW</strong> (not seen before). ' +
       '<strong>LEFT arrow</strong> = OLD &nbsp;&nbsp; <strong>RIGHT arrow</strong> = NEW. ' +
       'Then rate how sure you are. If you say OLD, you will also answer a short question about music.</li>' +
+      '<li style="margin-bottom:12px;"><strong>Part 3 — Music ratings.</strong> ' +
+      'You will hear again each piece of music that played with a video. ' +
+      'Each clip lasts about <strong>6 seconds</strong>. ' +
+      'Then you will answer four short questions by pressing <strong>1</strong> to <strong>5</strong>. ' +
+      'Each question moves on after <strong>3 seconds</strong>.</li>' +
       '</ol>' +
-      '<p>Before Part 1 and again before Part 2, there is a short audio check. ' +
+      '<p>Before Part 1 and again before Part 3, there is a short audio check. ' +
       'You will also see brief breaks between blocks. Press <strong>ENTER</strong> to advance instruction screens.</p>' +
       '<p>Press ENTER to continue.</p>',
 
@@ -358,17 +304,37 @@ const CONFIG = {
     surveyIntro:
       '<h2>Music survey</h2>' +
       '<p>You will hear music clips one at a time. Each clip plays for about <strong>6 seconds</strong>.</p>' +
-      '<p>After each clip, answer every question (move each slider, choose Yes/No, or pick from the dropdown) and continue.</p>' +
+      '<p>After each clip, answer four questions by pressing <strong>1</strong>, <strong>2</strong>, <strong>3</strong>, <strong>4</strong>, or <strong>5</strong>.</p>' +
+      '<p>Each question moves on after <strong>3 seconds</strong>, whether or not you have answered.</p>' +
       '<p>Press ENTER to begin.</p>',
 
-    recallIntro:
-      '<p>Now you will see videos and decide if each is <strong>OLD</strong> (seen during encoding) ' +
-      'or <strong>NEW</strong> (not seen before).</p>' +
-      '<p><strong>LEFT arrow</strong> = OLD &nbsp;&nbsp; <strong>RIGHT arrow</strong> = NEW</p>' +
-      '<p>After each decision, press <strong>1</strong> (Sure), <strong>2</strong> (Maybe), or <strong>3</strong> (Guess).</p>' +
-      '<p>If you said OLD, you will also answer whether there was music with that video ' +
-      '(1 = No music, 2 = Music you knew, 3 = Music you did not know).</p>' +
-      '<p>Press ENTER to proceed.</p>',
+    consent:
+      '<h2>Research information</h2>' +
+      '<p><strong>Rutgers, The State University of New Jersey</strong><br>' +
+      'Department of Neurosurgery, New Brunswick, NJ</p>' +
+      '<p style="font-size:20px;"><strong>Mechanisms of Human Memory in Online General Populations</strong></p>' +
+      '<div id="consent-text" style="text-align:left;max-height:42vh;overflow:auto;border:1px solid #ccc;padding:16px 18px;font-size:18px;line-height:1.45;">' +
+      '<p>You are invited to take part in a research study at Rutgers University. Participation is completely voluntary.</p>' +
+      '<p><strong>Purpose.</strong> To understand how people remember past experiences.</p>' +
+      '<p><strong>What you will do.</strong> You will complete one online memory task (videos, a memory test, and short music ratings) on Pavlovia. The session takes about <strong>60 minutes</strong>.</p>' +
+      '<p><strong>Payment.</strong> You will receive <strong>$12.00 per hour</strong> through Prolific when you finish.</p>' +
+      '<p><strong>Risks.</strong> Risks are minimal: mild eye strain, boredom, or tiredness from a computer task. There are rest breaks between blocks.</p>' +
+      '<p><strong>Benefits.</strong> There is no direct benefit to you. The study may help researchers understand memory.</p>' +
+      '<p><strong>Privacy.</strong> We do not collect your name, IP address, medical information, or contact details. Research records use only the temporary Prolific ID from the study link.</p>' +
+      '<p><strong>Leaving the study.</strong> You may skip any survey question or stop at any time by closing this window.</p>' +
+      '<p><strong>Questions.</strong> For questions about your rights as a participant, contact the Rutgers Human Research Protection Program, 335 George Street, Liberty Plaza Suite 3200, New Brunswick, NJ 08901. Phone: (848) 932-0150. Email: irb-office@research.rutgers.edu.</p>' +
+      '<p>By clicking <strong>I AGREE</strong>, you confirm that:</p>' +
+      '<ol>' +
+      '<li>You have read and understood this information.</li>' +
+      '<li>You are at least 18 years old and fluent in English.</li>' +
+      '<li>You voluntarily agree to participate.</li>' +
+      '<li>You may print or save a copy of this form.</li>' +
+      '</ol></div>' +
+      '<p style="font-size:18px;margin-top:12px;"><a href="#" id="consent-print">Print or save a copy</a></p>',
+
+    consentDeclined:
+      '<h2>You declined to participate</h2>' +
+      '<p>You chose not to participate. Please close this window and return your submission on Prolific.</p>',
 
     end:
       '<h2>Thank you!</h2>' +

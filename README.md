@@ -5,11 +5,11 @@ experiments (`DIODE_music_memory_{ENCODING,SURVEY,RECALL}.psyexp`) for online da
 This folder is a standalone copy of `Music_Memory/MasterVersion/online_version` and is intended to be
 the root of a **Pavlovia (GitLab) repository** whose run link is distributed through **Prolific**.
 
-The whole session runs in one sitting (about 75–90 minutes):
+The whole session runs in one sitting (about 60 minutes). A consent screen comes first. Then:
 
-1. **Encoding** — watch 108 short video clips; two thirds are accompanied by music; press F/J for person count during each video.
-2. **Survey** — hear each of the 72 music clips again and answer 12 questions (sliders, Yes/No, dropdown).
-3. **Recall** — old/new recognition on 216 videos (108 seen, 108 lures), then confidence; source memory after OLD responses.
+1. **Encoding** — watch 108 short video clips; two thirds are accompanied by music; press F/J for person count during each video (the chosen label is boxed).
+2. **Recall** — old/new recognition on 216 videos (108 seen, 108 lures), then confidence; source memory after OLD responses.
+3. **Survey** — hear each of the 72 music clips again and answer 4 questions (keys 1–5, 3 seconds each). The survey follows recognition so hearing the songs again cannot change the memory-test answers.
 
 ---
 
@@ -23,7 +23,9 @@ The whole session runs in one sitting (about 75–90 minutes):
 | Pavlovia data upload | Wired via vendored `vendor/jspsych-7-pavlovia-2022.1.1.js` (`init`/`finish` on Pavlovia hosts) |
 | Prolific ID capture and completion redirect | Complete (set real `CONFIG.prolific.completionUrl` before going live) |
 | Desktop / keyboard guard | `CONFIG.requireDesktop = true` |
-| Stimulus files | 108 + 216 `.mp4` videos; 36 + 36 music `.mp3`; manifest generated for birth year 1993 |
+| Stimulus files | 108 + 216 `.mp4` videos; 36 + 36 music clips; manifest generated for this checkout's cohort |
+
+Bundled birth cohort: 1993
 
 See [Before the first Prolific run](#before-the-first-prolific-run) for the remaining operator steps
 (completion code + Pavlovia/Prolific deploy).
@@ -40,15 +42,19 @@ See [Before the first Prolific run](#before-the-first-prolific-run) for the rema
 - **Encoding trial:** fixation cross (3000 ms) followed by the video (about 3 s, 342x256 h264, shown at
   800x450). If the trial has music, the clip starts at fixation onset and stops when the video ends.
   During the video the participant presses **F = one person or fewer** or **J = more than one person**
-  (does not end the trial). Person-count labels live in `stimuli/encoding_video_labels.json`
+  (does not end the trial). The first keypress draws a box around that choice. Person-count labels live in `stimuli/encoding_video_labels.json`
   (from Memento captions; confirm before production).
-- **Survey:** every music clip heard during encoding (36 MEAM + 36 control = 72) is replayed for about
-  6 s, then answered with 12 items: familiarity; specific memory (Yes/No); reliving; self-relevance;
-  age first heard (dropdown); recent exposure; earworm; liking; valence; arousal; distraction; novelty.
 - **Recall:** 9 lists x 24 trials = 216 videos. Each list contains the 12 videos from the matching
   encoding list plus 12 never-seen lures, shuffled. Fixation 750 ms, then the video; the participant
   presses **Left arrow = OLD** or **Right arrow = NEW**, then confidence (**1 = Sure, 2 = Maybe, 3 = Guess**).
   After OLD only: source memory (**1 = No music, 2 = Music you knew, 3 = Music you did not know**).
+- **Survey (after recall):** every music clip heard during encoding (36 MEAM + 36 control = 72) is replayed
+  for about 6 s, then rated with 4 items on keys **1–5**: familiarity; autobiographical memory
+  (none → vivid, specific memory); self-relevance; liking. Each question advances after 3 seconds
+  if there is no keypress (`timed_out = 1`, response blank).
+- **Consent:** the first screen is a short Rutgers research-information page. Agree continues; Decline
+  stops on a dead-end screen with no completion link and no saved data. An agreed session logs one
+  `question = consent` row.
 - **Audio check:** before encoding and again before the survey the participant hears the word "dog",
   confirms they heard it (Y/N, replay on N) and types it. The block loops until typed correctly.
 - **Breaks:** self-paced instruction screens between phases and at the start of each list; ENTER advances.
@@ -60,18 +66,16 @@ Music files are named `Cut_<releaseYear>_<n>.<ext>`. The PsychoPy task selects s
 and young adulthood.
 
 In the online version this filtering happens **once, when the stimulus manifest is generated**
-(`tools/generate_manifest.py --birth-year YYYY`), not per participant at runtime. This repo bundles the
-**1993 cohort** (release years 2008–2022, 36 MEAM + 36 control clips, copied from
-`Music_Memory/1993_stimuli/`). Consequently:
+(`tools/generate_manifest.py --birth-year YYYY`), not per participant at runtime. Each repository
+bundles one cohort (36 MEAM + 36 control clips). Videos are the same for every year; only the music
+changes. The cohort in this checkout is the bundled birth cohort named above. Consequently:
 
 - One deployed Pavlovia project serves one birth cohort.
 - On Prolific, restrict recruitment with the **age** prescreener so participants were born close to
-  the cohort year (for 1993 in 2026: roughly ages 31–35).
+  that cohort year.
 - The birth year typed by the participant is recorded in the data but does **not** change which songs
   are played. A console warning is printed if it differs from `STIMULI_MANIFEST.birthYearUsed`.
-- To deploy another cohort, make a second copy of this repo, replace `stimuli/music_meam` and
-  `stimuli/music_control` with that cohort's clips (`Music_Memory/<YEAR>_stimuli/{meam,control}_stimuli_UI`),
-  convert to mp3 and regenerate the manifest with the matching `--birth-year`.
+- Another year is a sibling repository from `tools/create_cohort_repo.sh` (see below).
 
 ---
 
@@ -90,6 +94,7 @@ music_memory_prolific/
     randomization.js      Builds the per-participant assignment (lists, conditions, music, lures)
     datasaver.js          Tidy CSV schema, localStorage backup, checkpoint hooks
     common.js             Shared screens: instructions, fixation, audio check, test summary
+    consent.js            Research-information screen (agree / decline)
     encoding.js           Encoding phase timeline
     survey.js             Survey phase timeline
     recall.js             Recall phase timeline
@@ -110,6 +115,7 @@ music_memory_prolific/
     export_memento_meta.py      Build memento_video_meta.json from the local Memento DB
     build_encoding_labels.py    Draft person-count labels from Memento captions
     setup_stimuli.sh      Copy stimuli from an explicit source folder; regenerate manifest
+    create_cohort_repo.sh Build a sibling repo for another birth year (shared videos, new music)
     convert_audio.sh      Legacy ffmpeg WAV -> MP3 helper; not used (conversion is manual)
     generate_manifest.py  Writes js/stimuli_manifest.js (accepts .mp3 and .wav)
     smoke_test.js         node tools/smoke_test.js  (assignment, config, datasaver, keys)
@@ -118,7 +124,7 @@ music_memory_prolific/
 
 jsPsych 7.3.4 and its plugins are loaded from `unpkg.com` in `index.html` / `test.html`
 (`html-keyboard-response`, `video-keyboard-response`, `audio-keyboard-response`,
-`html-slider-response`, `survey-html-form`, `preload`, `call-function`).
+`html-button-response`, `survey-html-form`, `preload`, `call-function`).
 
 ---
 
@@ -141,7 +147,9 @@ printf '.DS_Store\ndata/\n' > "$DST/.gitignore"
 Convert music clips to MP3 **manually** (WAV originals are large) and place the `.mp3` files in
 `stimuli/music_meam` and `stimuli/music_control`, keeping the `Cut_<YEAR>_<n>` names and removing any
 `.wav` originals. The task code is extension-agnostic; the manifest generator picks up whatever
-`.mp3`/`.wav` files are present. This repo already has the 1993 cohort as MP3.
+`.mp3`/`.wav` files are present. This template checkout has the 1993 cohort as MP3. A cohort repo
+built by `create_cohort_repo.sh` keeps whatever audio you supply, and prints a reminder when that
+audio is still WAV.
 
 Then regenerate the manifest and run the smoke tests:
 
@@ -154,7 +162,51 @@ To refresh stimuli from another source folder later:
 
 ```bash
 bash tools/setup_stimuli.sh /path/to/source_stimuli 1993
+bash tools/setup_stimuli.sh --music-only /path/to/1967_stimuli 1967
 ```
+
+`--music-only` replaces `stimuli/music_meam` and `stimuli/music_control` and leaves the shared videos
+in place. Source folders may be named `music_meam` / `music_control` or `meam_stimuli_UI` /
+`control_stimuli_UI`. If a clip exists as both `.mp3` and `.wav`, only the `.mp3` is copied.
+
+---
+
+## Creating another birth-year cohort
+
+Each birth year is its own repository and its own Pavlovia project. The new repo copies this task,
+the videos, the audio check, the person-count labels, and the Memento metadata. It then installs
+that year's music and sets the birth year.
+
+```bash
+bash tools/create_cohort_repo.sh 1967 \
+  "/path/to/Music_Memory/1967_stimuli"
+```
+
+Optional third argument: destination directory. The default is a sibling of this repo,
+`~/Documents/GitRepos/music_memory_prolific_<YEAR>`.
+
+The script:
+
+1. Copies this task and the shared video files.
+2. Copies music from `<YEAR>_stimuli/meam_stimuli_UI` and `control_stimuli_UI` (or from
+   `music_meam` / `music_control` if those are the folder names).
+3. Sets `CONFIG.defaultBirthYear` and regenerates `js/stimuli_manifest.js`.
+4. Runs `node tools/smoke_test.js` and `python3 tools/smoke_test.py`.
+5. Initializes git on `main` and sets `origin` to
+   `https://gitlab.pavlovia.org/seqasim/music-memory-prolific-<YEAR>.git`.
+
+It does not push. Create the empty jsPsych project on Pavlovia first, then:
+
+```bash
+cd ~/Documents/GitRepos/music_memory_prolific_1967
+git push -u origin main
+```
+
+If the source music is still WAV, convert those clips to MP3 manually, replace the files under
+`stimuli/music_meam` and `stimuli/music_control`, regenerate the manifest with the same
+`--birth-year`, and commit that audio swap before a live run. Then set Results format to CSV,
+replace `REPLACE_ME` in `CONFIG.prolific.completionUrl`, and Pilot. On Prolific, age-screen for
+that birth year.
 
 ---
 
@@ -237,13 +289,13 @@ Results appear in the project's `data/` folder on GitLab and in the dashboard do
    link is always shown in case the redirect is blocked.
 3. **Device and prescreening:** restrict to **desktop** (arrow keys are required), require **audio**
    in the study description, and set the **age** range to match the music cohort (see above). Set the
-   estimated time to about 80–90 minutes and price accordingly.
+   estimated time to about 60 minutes and price accordingly.
 4. **Pilot checklist** before publishing:
    - Preview the study from Prolific; confirm the URL contains `PROLIFIC_PID`.
    - Complete a `?test=rutgers2026` run via the Pavlovia pilot link; confirm the CSV arrives on Pavlovia
      with `prolific_pid`, `study_id`, `session_id` populated and `completed_session = 1`.
    - Confirm you land on the Prolific completion page.
-   - Check the audio check cannot be bypassed and the slider requires movement.
+   - Check the audio check cannot be bypassed, consent appears first, and an unanswered survey question advances after 3 seconds.
 
 ---
 
@@ -257,12 +309,13 @@ Output is a tidy CSV, one row per event. Columns (`DATA_COLUMNS` in `js/datasave
 | `participant`, `birth_year`, `session_start_iso` | Session identifiers |
 | `prolific_pid`, `study_id`, `session_id` | From Prolific URL parameters |
 | `completed_session` | `1` if the participant reached the end, else `0` |
-| `phase` | `audio_check`, `encoding`, `survey`, `recall` |
+| `phase` | `consent`, `audio_check`, `encoding`, `recall`, `survey` |
 | `list_num`, `trial_num`, `condition` | Position and music condition (`no_music`, `meam`, `control_music`) |
 | `video_file`, `music_file` | Stimulus paths |
-| `question` | Survey: question id or `music_replay`; encoding: `person_count`; recall: `confidence` / `source`; audio check: `typed_word` |
+| `question` | Survey: question id or `music_replay`; encoding: `person_count`; recall: `confidence` / `source`; audio check: `typed_word`; consent: `consent` |
 | `is_old`, `correct` | Recall recognition: 1 = old video; 1 = correct old/new. Also used for source scoring, encoding orienting, and the audio check |
 | `response`, `rt_ms` | Response label/value and reaction time (ms from stimulus onset) |
+| `timed_out` | `1` if a survey question advanced with no keypress; otherwise blank |
 | `mem_score`, `mem_alpha` | Memento10k normative memorability and decay (encoding / recall rows) |
 | `trial_onset_ms` | ms since session start |
 | `browser`, `screen_width`, `screen_height`, `focus_lost_count` | Environment and attention proxies |
@@ -277,7 +330,8 @@ Notes for analysis:
 - Confidence: `phase = recall`, `question = confidence`; `response` is `sure` / `maybe` / `guess`.
 - Source: `phase = recall`, `question = source`; `response` is `no_music` / `knew` / `did_not_know`; `correct` scored vs encoding condition.
 - Encoding orienting: `phase = encoding`, `question = person_count`; `response` is `one_or_fewer` / `multiple`; `correct` blank when the label is `ambiguous`.
-- Survey ratings: `phase = survey`, `question != music_replay`; slider responses are 1–5; Yes/No and dropdown use string labels.
+- Survey ratings: `phase = survey`, `question != music_replay`; responses are `1`–`5`. A timeout leaves `response` blank, `rt_ms` blank, and `timed_out = 1`.
+- Consent: `phase = consent`, `question = consent`, `response = agreed` (decline saves nothing).
 
 ---
 
@@ -287,7 +341,7 @@ Notes for analysis:
 |----------------|-------|
 | Fixation durations, list/trial counts, conditions per list | `js/config.js` top section |
 | Instruction and break text | `js/config.js` > `instructions`, `breaks` |
-| Survey questions, scale range, slider width | `js/config.js` > `surveyQuestions`, `surveyScale*` |
+| Survey questions, keys, 3 s timeout | `js/config.js` > `surveyQuestions`, `surveyResponseKeys`, `surveyQuestionTimeoutMs` |
 | Confidence / source / person-count keys | `js/config.js` > `confidenceKeys`, `sourceKeys`, `encodingOrienting` |
 | Person-count labels | `stimuli/encoding_video_labels.json` (confirm before production) |
 | Memento memorability sidecar | `stimuli/memento_video_meta.json` via `tools/export_memento_meta.py` |
@@ -297,6 +351,7 @@ Notes for analysis:
 | How videos/music are shuffled and paired | `js/randomization.js` |
 | Output columns | `js/datasaver.js` > `DATA_COLUMNS`, `_baseFields`, `logTrial` |
 | Stimulus files | Edit folders under `stimuli/`, then `python3 tools/generate_manifest.py --birth-year YYYY` |
+| Another birth year | `bash tools/create_cohort_repo.sh <YEAR> /path/to/<YEAR>_stimuli` |
 
 Never hand-edit `js/stimuli_manifest.js`.
 

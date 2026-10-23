@@ -167,6 +167,8 @@ function buildEncodingTrialPair(trial) {
     },
   };
 
+  let orientHandler = null;
+
   const video = {
     type: jsPsychVideoKeyboardResponse,
     stimulus: [trial.videoPath],
@@ -177,7 +179,25 @@ function buildEncodingTrialPair(trial) {
     width: 800,
     height: 450,
     prompt: wrapHtml(CONFIG.encodingOrienting.prompt),
+    on_load: () => {
+      orientHandler = (event) => {
+        const key = String(event.key || '').toLowerCase();
+        const one = oneKey.toLowerCase();
+        const multiple = multipleKey.toLowerCase();
+        if (key !== one && key !== multiple) return;
+        const targetId = key === one ? 'orient-one' : 'orient-multiple';
+        const target = document.getElementById(targetId);
+        if (target) target.classList.add('selected');
+        document.removeEventListener('keydown', orientHandler);
+        orientHandler = null;
+      };
+      document.addEventListener('keydown', orientHandler);
+    },
     on_finish: (data) => {
+      if (orientHandler) {
+        document.removeEventListener('keydown', orientHandler);
+        orientHandler = null;
+      }
       if (window._encodingAudio) {
         window._encodingAudio.pause();
         window._encodingAudio = null;

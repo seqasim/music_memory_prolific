@@ -8,7 +8,7 @@ Online files touched for these changes:
 
 - `js/config.js` — keys, prompts, survey items, instructions, session length
 - `js/encoding.js` — person-count orienting during video
-- `js/survey.js` — slider / yes_no / dropdown question types
+- `js/survey.js` — four 1–5 keypress items, 3 s timeout, after recognition
 - `js/recall.js` — confidence + conditional source
 - `js/randomization.js` — `encodingCondition` on old recall trials; Memento mem scores
 - `js/datasaver.js` / `js/common.js` — logging and test verification
@@ -111,45 +111,48 @@ PsychoPy should load them once at session start.
 
 ---
 
-## 2. Survey: revised items and response types
+## 2. Survey: four keypress items, after recognition
 
 ### Rationale
 
-Separates autobiographical salience from familiarity, earworm quality, age at
-first exposure, recent exposure, and affect (valence/arousal).
+Keeps the constructs that matter for self-referential thinking, preference, and
+autobiographical memory, and drops the rest so the survey stays under about 24
+minutes. The survey runs **after** recognition. Hearing each song again before
+the memory test would re-expose the music and could change source-memory answers.
 
-### Trial flow (unchanged structure)
+### Trial flow
 
-`preload → play music (6 s) → Q1 → Q2 → … → Q12`
+Session order: encoding → recall → survey.
 
-### Question table (paste into a conditions file)
+Per clip: `preload → play music (6 s) → Q1 → Q2 → Q3 → Q4`
 
-| id | type | text | labels / options |
-|----|------|------|------------------|
-| familiarity | slider | How familiar are you with this music? | Not at all … Extremely |
-| specific_memory | yes_no | Did this song bring back a specific memory from your own life? | Yes / No |
-| reliving | slider | How vividly did you mentally relive past experiences while hearing this song? | Not at all … Extremely |
-| self_relevance | slider | While listening to this song, how much were you thinking about yourself or your own life? | Not at all … Extremely |
-| age_first_heard | dropdown | Roughly how old were you when you first heard this song? | never; under_10; 10_14; 15_19; 20_24; 25_29; 30_plus |
-| recent_exposure | slider | How often have you heard this song in the past year? | Never … Very often |
-| earworm | slider | How catchy is this song (likely to get stuck in your head)? | Not at all … Extremely |
-| liking | slider | How much do you like this music? | Not at all … Extremely |
-| valence | slider | How pleasant or unpleasant did this song feel? | Unpleasant … Pleasant |
-| arousal | slider | How calming or energizing did this song feel? | Calming … Energizing |
-| distraction | slider | During the video, how distracting did you find the music? | Not at all … Extremely |
-| novelty | slider | How novel or unexpected did you find this song? | Not at all … Extremely |
+Each question accepts keys **1–5** and ends after **3 seconds** if there is no
+keypress.
 
-**Dropped vs prior online task:** `memory_strength` (merged into reliving),
-`engagement`, `emotionally_moving` (replaced by valence + arousal).
+### Question table
 
-**No free-text** follow-up for `specific_memory`.
+| id | type | text | labels |
+|----|------|------|--------|
+| familiarity | key_scale | How familiar is this song? | 1 Not at all … 5 Extremely |
+| autobio_memory | key_scale | Did this song bring back memories from your own life? | 1 None … 5 Vivid, specific memory |
+| self_relevance | key_scale | How much did this song make you think about yourself? | 1 Not at all … 5 Very much |
+| liking | key_scale | How much do you like this song? | 1 Not at all … 5 Very much |
+
+`familiarity` is the knew / did-not-know manipulation check (it also covers the
+dropped `novelty` item). `autobio_memory` merges the old Yes/No specific-memory
+item with reliving. `liking` covers preference (and stands in for the dropped
+`valence` item).
+
+**Dropped:** `specific_memory`, `reliving`, `age_first_heard`, `recent_exposure`,
+`earworm`, `valence`, `arousal`, `distraction`, `novelty`.
+
+**No free-text.**
 
 ### PsychoPy mapping
 
-- Sliders: Rating Scale / Slider, 1–5, require response, show end labels.
-- Yes/No: two mouse buttons or keys (`y`/`n`), store `yes`/`no`.
-- Dropdown: Form / dropdown, required; store value codes above
-  (`never`, `under_10`, …).
+- Keyboard, `allowedKeys` = `1`–`5`, force end of Routine = true.
+- Routine duration 3 s so a missed key still advances.
+- Store the key, or blank plus a timeout flag when the routine ends with no key.
 
 Music duration: first 6 s only (online uses `trial_duration: 6000`, not full file).
 
@@ -159,7 +162,9 @@ Music duration: first 6 s only (online uses `trial_duration: 6000`, not full fil
 |-------|--------|
 | `phase` | `survey` |
 | `question` | item `id` (or `music_replay` for the play row) |
-| `response` | 1–5 for sliders; `yes`/`no`; dropdown value string |
+| `response` | `1`–`5`, or blank on timeout |
+| `timed_out` | `1` if no keypress; otherwise blank |
+| `rt_ms` | keypress time, or blank on timeout |
 
 ---
 
@@ -278,11 +283,13 @@ video path). Lures / NEW responses skip source.
 
 Update welcome / break / recall intro text in PsychoPy to match `js/config.js`:
 
-- Session length: **75–90 minutes**
-- Part 1 mentions F/J person count
-- Part 2 mentions sliders, Yes/No, dropdown
-- Part 3 mentions confidence and source-after-OLD
-- `beforeRecall` break text mentions confidence + source
+- Session length: **about 60 minutes**
+- Consent screen before any task (Agree / Decline)
+- Part 1 mentions F/J person count; the first press is boxed on screen
+- Part 2 is the memory test (confidence and source-after-OLD)
+- Part 3 is music ratings (keys 1–5, 3 seconds per question)
+- The break after encoding (`breaks.afterEncoding`) leads into the memory test and states the recall keys
+- The break after recall (`breaks.afterRecall`) leads into the survey
 
 ---
 
@@ -291,7 +298,7 @@ Update welcome / break / recall intro text in PsychoPy to match `js/config.js`:
 - [ ] Encoding: 108 trials; F/J person-count recorded; video duration unchanged when a key is pressed
 - [ ] Orienting `correct` blank for ambiguous clips in the label file
 - [ ] `mem_score` / `mem_alpha` present on encoding and recall rows
-- [ ] Survey: 72 clips × 12 questions; same ids and option codes
+- [ ] Survey after recognition: 72 clips × 4 questions; same ids; timeout leaves response blank and `timed_out = 1`
 - [ ] Survey music plays ~6 s
 - [ ] Recall: 216 old/new RTs still measured on the recognition routine
 - [ ] Confidence on every trial; source only after OLD

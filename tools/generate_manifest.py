@@ -145,9 +145,13 @@ def main() -> None:
     print(f"Wrote {OUTPUT_FILE}")
     print("Counts:", manifest["counts"])
     if manifest["counts"]["meamMusic"] < 36 or manifest["counts"]["controlMusic"] < 36:
+        year_min = args.birth_year + args.music_offset_min
+        year_max = min(args.birth_year + args.music_offset_max, args.music_year_cap)
         print(
-            f"WARNING: Task needs 36 MEAM + 36 control clips. "
-            f"Try --birth-year 1993 if using 1993-era music (years 2008-2023)."
+            "WARNING: Task needs 36 MEAM + 36 control clips in the birth-year window "
+            f"({year_min}–{year_max}). "
+            f"Found {manifest['counts']['meamMusic']} MEAM and "
+            f"{manifest['counts']['controlMusic']} control."
         )
     if manifest["counts"]["meamMusic"] == 0 or manifest["counts"]["controlMusic"] == 0:
         print("WARNING: No music files found. Add music to stimuli/music_meam and stimuli/music_control.")
