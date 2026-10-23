@@ -74,9 +74,12 @@ async function validateStimuliReachable(manifest) {
     try {
       const response = await fetch(path, { method: 'HEAD' });
       if (!response.ok) {
+        const birthYear =
+          (typeof STIMULI_MANIFEST !== 'undefined' && STIMULI_MANIFEST.birthYearUsed) ||
+          CONFIG.defaultBirthYear;
         return (
           `Missing stimulus file (${response.status}): ${path}\n\n` +
-          'Run: python3 tools/generate_manifest.py --birth-year 1993'
+          `Run: python3 tools/generate_manifest.py --birth-year ${birthYear}`
         );
       }
     } catch (error) {
@@ -220,7 +223,11 @@ async function runExperiment() {
   const sessionId = url.sessionId || '';
   const hasPidFromUrl = !!(url.participant || url.prolificPid);
 
-  const timeline = [];
+  const sessionTimeline = [];
+
+  if (window.jsPsychPavlovia && onPavlovia) {
+    sessionTimeline.push({ type: jsPsychPavlovia, command: 'init' });
+  }
 
   const birthYearOnlyForm = {
     type: jsPsychSurveyHtmlForm,
@@ -253,18 +260,18 @@ async function runExperiment() {
 
   if (url.participant && url.birthYear) {
     // Fully specified via URL — require a keypress so the browser allows audio later.
-    timeline.push(instructionTrial('<p>Press ENTER to begin the session.</p>'));
+    sessionTimeline.push(instructionTrial('<p>Press ENTER to begin the session.</p>'));
   } else if (url.prolificPid && !url.participant) {
     // Prolific: PID known; only ask for birth year (unless also in URL).
     if (url.birthYear) {
-      timeline.push(instructionTrial('<p>Press ENTER to begin the session.</p>'));
+      sessionTimeline.push(instructionTrial('<p>Press ENTER to begin the session.</p>'));
     } else {
-      timeline.push(birthYearOnlyForm);
+      sessionTimeline.push(birthYearOnlyForm);
     }
   } else if (!hasPidFromUrl) {
-    timeline.push(fullEntryForm);
+    sessionTimeline.push(fullEntryForm);
   } else {
-    timeline.push(instructionTrial('<p>Press ENTER to begin the session.</p>'));
+    sessionTimeline.push(instructionTrial('<p>Press ENTER to begin the session.</p>'));
   }
 
   const setupNode = {
@@ -287,6 +294,12 @@ async function runExperiment() {
         prolificPid,
         studyId,
         sessionId,
+      });
+      DataSaver.logTrial({
+        phase: 'consent',
+        question: 'consent',
+        response: 'agreed',
+        rt_ms: window._consentRt ?? '',
       });
 
       const manifest = STIMULI_MANIFEST;
@@ -350,11 +363,11 @@ async function runExperiment() {
       }
 
       if (includeEncoding) phaseTimeline.push(...buildEncodingTimeline(assignment));
-      if (includeSurvey) phaseTimeline.push(...buildSurveyTimeline(assignment));
       if (includeRecall) {
         const recallVideos = assignment.recallTrials.map((t) => t.videoPath);
         phaseTimeline.push(...buildRecallTimeline(assignment, recallVideos));
       }
+      if (includeSurvey) phaseTimeline.push(...buildSurveyTimeline(assignment));
 
       if (CONFIG.isTestMode) {
         phaseTimeline.push(...buildTestVerificationTimeline());
@@ -384,11 +397,19 @@ async function runExperiment() {
     },
   };
 
-  timeline.push(setupNode);
+  sessionTimeline.push(setupNode);
 
-  if (window.jsPsychPavlovia && onPavlovia) {
-    timeline.unshift({ type: jsPsychPavlovia, command: 'init' });
-  }
+  const timeline = [
+    buildConsentTrial(),
+    {
+      timeline: [buildConsentDeclineTrial()],
+      conditional_function: () => window._consentAgreed !== true,
+    },
+    {
+      timeline: sessionTimeline,
+      conditional_function: () => window._consentAgreed === true,
+    },
+  ];
 
   jsPsych.run(timeline);
 }

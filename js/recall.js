@@ -109,8 +109,7 @@ function buildRecallTimeline(assignment, recallVideoPaths) {
     });
 
   const nodes = [
-    breakScreen(CONFIG.breaks.beforeRecall),
-    instructionTrial(CONFIG.instructions.recallIntro),
+    breakScreen(CONFIG.breaks.afterEncoding),
   ];
   if (preloadNode) nodes.push(preloadNode);
   nodes.push({ timeline: listTimelines });

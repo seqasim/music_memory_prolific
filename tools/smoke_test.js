@@ -69,7 +69,22 @@ try {
   if (context.CONFIG.requireDesktop !== true) {
     throw new Error('CONFIG.requireDesktop should be true');
   }
-  console.log('smoke_test OK (prolific config + requireDesktop)');
+  if (context.CONFIG.defaultBirthYear !== context.STIMULI_MANIFEST.birthYearUsed) {
+    throw new Error(
+      `CONFIG.defaultBirthYear (${context.CONFIG.defaultBirthYear}) does not match ` +
+        `manifest birthYearUsed (${context.STIMULI_MANIFEST.birthYearUsed})`
+    );
+  }
+  if (
+    context.STIMULI_MANIFEST.counts.meamMusic !== 36 ||
+    context.STIMULI_MANIFEST.counts.controlMusic !== 36
+  ) {
+    throw new Error(
+      `Expected 36 MEAM and 36 control clips, got ${context.STIMULI_MANIFEST.counts.meamMusic} ` +
+        `and ${context.STIMULI_MANIFEST.counts.controlMusic}`
+    );
+  }
+  console.log('smoke_test OK (prolific config + requireDesktop + cohort manifest)');
 
   const assignment = context.buildAssignment(context.STIMULI_MANIFEST);
   const m = assignment.meta;
@@ -78,10 +93,23 @@ try {
   if (m.totalSurvey !== 72) throw new Error(`Expected 72 survey clips, got ${m.totalSurvey}`);
   if (m.totalRecall !== 216) throw new Error(`Expected 216 recall trials, got ${m.totalRecall}`);
 
+  const audioCheck = context.CONFIG.stimuli.audioCheck;
+  if (assignment.encodingTrials.some((trial) => trial.musicPath === audioCheck)) {
+    throw new Error('Full session used audio-check placeholder music; add real cohort clips');
+  }
+  const meamTrials = assignment.encodingTrials.filter((trial) => trial.condition === 'meam');
+  const controlTrials = assignment.encodingTrials.filter((trial) => trial.condition === 'control_music');
+  if (meamTrials.length !== 36 || controlTrials.length !== 36) {
+    throw new Error(
+      `Expected 36 MEAM and 36 control encoding trials, got ${meamTrials.length} and ${controlTrials.length}`
+    );
+  }
+
   console.log('smoke_test OK (full session)');
   console.log('  encoding:', m.totalEncoding);
   console.log('  survey:', m.totalSurvey);
   console.log('  recall:', m.totalRecall);
+  console.log('  birth year:', context.STIMULI_MANIFEST.birthYearUsed);
 
   // Test mode assignment (same overrides as CONFIG.TEST_OVERRIDES)
   const testContext = makeContext({ TEST_MODE: true });
@@ -145,22 +173,46 @@ try {
     throw new Error('Lure recall trials should not carry encodingCondition');
   }
 
-  if (testContext.CONFIG.surveyQuestions.length !== 12) {
-    throw new Error(`Expected 12 survey questions, got ${testContext.CONFIG.surveyQuestions.length}`);
+  if (testContext.CONFIG.surveyQuestions.length !== 4) {
+    throw new Error(`Expected 4 survey questions, got ${testContext.CONFIG.surveyQuestions.length}`);
+  }
+  if (testContext.CONFIG.surveyQuestionTimeoutMs !== 3000) {
+    throw new Error('surveyQuestionTimeoutMs should be 3000');
   }
   const surveyTypes = Object.fromEntries(
-    testContext.CONFIG.surveyQuestions.map((q) => [q.id, q.type || 'slider'])
+    testContext.CONFIG.surveyQuestions.map((q) => [q.id, q.type || 'key_scale'])
   );
-  if (surveyTypes.specific_memory !== 'yes_no') {
-    throw new Error('specific_memory should be yes_no');
+  for (const id of ['familiarity', 'autobio_memory', 'self_relevance', 'liking']) {
+    if (surveyTypes[id] !== 'key_scale') {
+      throw new Error(`${id} should be key_scale`);
+    }
   }
-  if (surveyTypes.age_first_heard !== 'dropdown') {
-    throw new Error('age_first_heard should be dropdown');
-  }
-  for (const dropped of ['memory_strength', 'engagement', 'emotionally_moving']) {
+  for (const dropped of [
+    'memory_strength',
+    'engagement',
+    'emotionally_moving',
+    'specific_memory',
+    'reliving',
+    'age_first_heard',
+    'recent_exposure',
+    'earworm',
+    'valence',
+    'arousal',
+    'distraction',
+    'novelty',
+  ]) {
     if (surveyTypes[dropped]) {
       throw new Error(`Survey should not include dropped item ${dropped}`);
     }
+  }
+  if (!String(testContext.CONFIG.encodingOrienting.prompt).includes('id="orient-one"')) {
+    throw new Error('encoding orienting prompt should mark the F choice');
+  }
+  if (!testContext.CONFIG.instructions.consent || !testContext.CONFIG.instructions.consentDeclined) {
+    throw new Error('consent instructions should be set');
+  }
+  if (!testContext.CONFIG.breaks.afterRecall) {
+    throw new Error('breaks.afterRecall should lead into the survey');
   }
   if (!testContext.CONFIG.encodingOrienting || testContext.CONFIG.encodingOrienting.oneKey !== 'f') {
     throw new Error('CONFIG.encodingOrienting.oneKey should be f');
@@ -225,7 +277,7 @@ try {
   loadScript('js/datasaver.js', dataContext);
 
   const cols = dataContext.DATA_COLUMNS;
-  for (const col of ['prolific_pid', 'study_id', 'session_id', 'mem_score', 'mem_alpha']) {
+  for (const col of ['prolific_pid', 'study_id', 'session_id', 'mem_score', 'mem_alpha', 'timed_out']) {
     if (!cols.includes(col)) {
       throw new Error(`DATA_COLUMNS missing ${col}`);
     }
@@ -245,6 +297,15 @@ try {
     condition: 'no_music',
     response: '',
   });
+  dataContext.DataSaver.logTrial({
+    phase: 'survey',
+    question: 'familiarity',
+    response: '',
+    timed_out: 1,
+  });
+  if (dataContext.DataSaver.rows[1].timed_out !== 1) {
+    throw new Error('timed_out should be stored on survey timeout rows');
+  }
   if (dataContext.DataSaver.rows[0].completed_session !== 0) {
     throw new Error('New rows should start with completed_session = 0');
   }

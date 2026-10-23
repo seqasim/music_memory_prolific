@@ -2,8 +2,8 @@
  * survey.js — Survey phase timeline (rate each heard music clip)
  * ================================================================
  * Only music trials from encoding (MEAM + control) are surveyed.
- * Each clip gets questions defined in CONFIG.surveyQuestions
- * (slider | yes_no | dropdown).
+ * Each clip gets CONFIG.surveyQuestions (key_scale: press 1–5, 3 s timeout).
+ * Runs after recognition so ratings do not re-expose music before source memory.
  */
 
 /**
@@ -17,7 +17,7 @@ function buildSurveyTimeline(assignment) {
   }));
 
   return [
-    breakScreen(CONFIG.breaks.afterEncoding),
+    breakScreen(CONFIG.breaks.afterRecall),
     ...buildAudioCheckTimeline(),
     instructionTrial(CONFIG.instructions.surveyIntro),
     ...musicTrials,
@@ -39,6 +39,40 @@ function surveyClipHeader(clipIndex, totalClips) {
 }
 
 /**
+ * 1–5 scale with end labels and a shrinking countdown bar.
+ * @param {object} q
+ * @returns {string}
+ */
+function surveyScaleHtml(q) {
+  const labels = q.labels && q.labels.length === CONFIG.surveyResponseKeys.length
+    ? q.labels
+    : CONFIG.surveyResponseKeys.map(() => '');
+  const boxes = CONFIG.surveyResponseKeys
+    .map((key, index) => {
+      const caption = labels[index]
+        ? `<div style="font-size:15px;margin-top:8px;line-height:1.25;">${labels[index]}</div>`
+        : '';
+      return (
+        '<div style="flex:1 1 0;min-width:0;text-align:center;">' +
+        `<div style="border:2px solid #111;border-radius:8px;padding:10px 0;font-size:28px;font-weight:bold;">${key}</div>` +
+        caption +
+        '</div>'
+      );
+    })
+    .join('');
+  const seconds = CONFIG.surveyQuestionTimeoutMs / 1000;
+
+  return (
+    `<p style="font-size:26px;margin-top:16px;">${q.text}</p>` +
+    `<div style="display:flex;justify-content:center;gap:10px;max-width:640px;margin:24px auto 0;">${boxes}</div>` +
+    `<p style="font-size:18px;margin-top:18px;">Press 1–5. This question moves on after ${seconds} seconds.</p>` +
+    '<div class="survey-timer-track">' +
+    `<div class="survey-timer-bar" style="animation-duration:${CONFIG.surveyQuestionTimeoutMs}ms;"></div>` +
+    '</div>'
+  );
+}
+
+/**
  * Build one survey question trial from a CONFIG.surveyQuestions entry.
  * @param {object} q
  * @param {object} trial
@@ -47,7 +81,6 @@ function surveyClipHeader(clipIndex, totalClips) {
  * @returns {object}
  */
 function buildSurveyQuestionTrial(q, trial, clipIndex, totalClips) {
-  const type = q.type || 'slider';
   const header = surveyClipHeader(clipIndex, totalClips);
   const baseLog = {
     phase: 'survey',
@@ -58,76 +91,30 @@ function buildSurveyQuestionTrial(q, trial, clipIndex, totalClips) {
     video_file: trial.sourceVideo,
     question: q.id,
   };
-  const baseData = {
-    phase: 'survey',
-    subphase: 'rating',
-    question: q.id,
-    list_num: trial.listNum,
-    clip_index: clipIndex,
-    music_file: trial.musicPath,
-  };
-
-  if (type === 'yes_no') {
-    return {
-      type: jsPsychHtmlButtonResponse,
-      stimulus: wrapHtml(header + `<p style="font-size:26px;margin-top:16px;">${q.text}</p>`),
-      choices: ['Yes', 'No'],
-      button_html: '<button class="jspsych-btn" style="margin:0 12px;min-width:120px;">%choice%</button>',
-      on_finish: (data) => {
-        const response = data.response === 0 ? 'yes' : data.response === 1 ? 'no' : '';
-        DataSaver.logTrial({ ...baseLog, response, rt_ms: data.rt });
-      },
-      data: baseData,
-    };
-  }
-
-  if (type === 'dropdown') {
-    const options = q.options || [];
-    const optionHtml = options
-      .map((opt) => `<option value="${opt.value}">${opt.label}</option>`)
-      .join('');
-    return {
-      type: jsPsychSurveyHtmlForm,
-      preamble: wrapHtml(header + `<p style="font-size:26px;margin-top:16px;">${q.text}</p>`),
-      html:
-        '<p style="margin-top:16px;">' +
-        `<select name="${q.id}" required style="font-size:22px;padding:10px;min-width:280px;">` +
-        '<option value="" disabled selected>Select one…</option>' +
-        optionHtml +
-        '</select></p>',
-      button_label: 'Continue',
-      on_finish: (data) => {
-        const response = (data.response && data.response[q.id]) || '';
-        DataSaver.logTrial({ ...baseLog, response, rt_ms: data.rt });
-      },
-      data: baseData,
-    };
-  }
-
-  // Default: slider
-  const labels =
-    q.labels && q.labels.length
-      ? q.labels
-      : Array.from(
-          { length: CONFIG.surveyScaleMax - CONFIG.surveyScaleMin + 1 },
-          (_, i) => String(CONFIG.surveyScaleMin + i)
-        );
 
   return {
-    type: jsPsychHtmlSliderResponse,
-    stimulus: wrapHtml(header + `<p style="font-size:26px;margin-top:16px;">${q.text}</p>`),
-    labels,
-    min: CONFIG.surveyScaleMin,
-    max: CONFIG.surveyScaleMax,
-    step: CONFIG.surveyScaleStep,
-    start: CONFIG.surveyDefaultValue,
-    slider_width: CONFIG.surveySliderWidthPx,
-    button_label: 'Continue',
-    require_movement: true,
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: wrapHtml(header + surveyScaleHtml(q)),
+    choices: CONFIG.surveyResponseKeys,
+    trial_duration: CONFIG.surveyQuestionTimeoutMs,
+    response_ends_trial: true,
     on_finish: (data) => {
-      DataSaver.logTrial({ ...baseLog, response: data.response, rt_ms: data.rt });
+      const timedOut = data.response == null;
+      DataSaver.logTrial({
+        ...baseLog,
+        response: timedOut ? '' : data.response,
+        rt_ms: timedOut ? '' : data.rt,
+        timed_out: timedOut ? 1 : 0,
+      });
     },
-    data: baseData,
+    data: {
+      phase: 'survey',
+      subphase: 'rating',
+      question: q.id,
+      list_num: trial.listNum,
+      clip_index: clipIndex,
+      music_file: trial.musicPath,
+    },
   };
 }
 
