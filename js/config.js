@@ -83,8 +83,8 @@ const CONFIG = {
    */
   recallResponseTimeoutMs: null,
 
-  /** Brief highlight after each recall keypress (ms). */
-  recallFeedbackMs: 500,
+  /** How long a boxed choice stays on screen before the next screen. */
+  choiceFeedbackMs: 400,
 
   // -------------------------------------------------------------------------
   // Response keys
@@ -108,10 +108,11 @@ const CONFIG = {
     '2': 'maybe',
     '3': 'guess',
   },
-  confidencePrompt:
-    '<p style="font-size:28px;margin-top:24px;"><strong>How sure are you?</strong></p>' +
-    '<p style="font-size:24px;margin-top:16px;">' +
-    '<strong>1</strong> = Sure &nbsp;&nbsp; <strong>2</strong> = Maybe &nbsp;&nbsp; <strong>3</strong> = Guess</p>',
+  confidenceOptions: [
+    { key: '1', label: 'Sure' },
+    { key: '2', label: 'Maybe' },
+    { key: '3', label: 'Guess' },
+  ],
 
   /**
    * Source memory after OLD responses only.
@@ -122,12 +123,11 @@ const CONFIG = {
     '2': 'knew',
     '3': 'did_not_know',
   },
-  sourcePrompt:
-    '<p style="font-size:28px;margin-top:24px;"><strong>When you saw this video, was there:</strong></p>' +
-    '<p style="font-size:24px;margin-top:16px;text-align:left;max-width:520px;margin-left:auto;margin-right:auto;">' +
-    '<strong>1</strong> = No music<br>' +
-    '<strong>2</strong> = Music you knew<br>' +
-    '<strong>3</strong> = Music you did not know</p>',
+  sourceOptions: [
+    { key: '1', label: 'No music' },
+    { key: '2', label: 'Music you knew' },
+    { key: '3', label: 'Music you did not know' },
+  ],
 
   /**
    * Encoding orienting judgment (during video; does not end the trial).
@@ -156,11 +156,11 @@ const CONFIG = {
   // Survey (music ratings)
   // -------------------------------------------------------------------------
 
-  /** Number keys for each survey item (1–5). */
-  surveyResponseKeys: ['1', '2', '3', '4', '5'],
+  /** Clickable scale values for each survey item. */
+  surveyScaleValues: [1, 2, 3, 4, 5],
 
   /** Auto-advance each survey question after this long, answered or not. */
-  surveyQuestionTimeoutMs: 3000,
+  surveyQuestionTimeoutMs: 4000,
 
   /**
    * How long to play each survey music clip (ms). Matches approximate encoding
@@ -170,7 +170,7 @@ const CONFIG = {
 
   /**
    * Questions shown after each music clip during the survey phase.
-   * type: 'key_scale' — press 1–5; unanswered items time out.
+   * type: 'key_scale' — click 1–5; unanswered items time out.
    * labels: five tick labels (ends carry the anchors).
    */
   surveyQuestions: [
@@ -242,8 +242,8 @@ const CONFIG = {
       title: 'Memory test complete',
       text:
         'Last part: you will hear each music clip again for about 6 seconds and answer four short questions about each one.<br><br>' +
-        'Press a number key from <strong>1</strong> to <strong>5</strong>. ' +
-        'Each question moves on after <strong>3 seconds</strong>.<br><br>' +
+        'Click a number from <strong>1</strong> to <strong>5</strong>. ' +
+        'Each question moves on after <strong>4 seconds</strong>.<br><br>' +
         'Press ENTER when you are ready to continue.',
     },
   },
@@ -274,8 +274,8 @@ const CONFIG = {
       '<li style="margin-bottom:12px;"><strong>Part 3 — Music ratings.</strong> ' +
       'You will hear again each piece of music that played with a video. ' +
       'Each clip lasts about <strong>6 seconds</strong>. ' +
-      'Then you will answer four short questions by pressing <strong>1</strong> to <strong>5</strong>. ' +
-      'Each question moves on after <strong>3 seconds</strong>.</li>' +
+      'Then you will answer four short questions by clicking a number from <strong>1</strong> to <strong>5</strong>. ' +
+      'Each question moves on after <strong>4 seconds</strong>.</li>' +
       '</ol>' +
       '<p>Before Part 1 and again before Part 3, there is a short audio check. ' +
       'You will also see brief breaks between blocks. Press <strong>ENTER</strong> to advance instruction screens.</p>' +
@@ -304,8 +304,8 @@ const CONFIG = {
     surveyIntro:
       '<h2>Music survey</h2>' +
       '<p>You will hear music clips one at a time. Each clip plays for about <strong>6 seconds</strong>.</p>' +
-      '<p>After each clip, answer four questions by pressing <strong>1</strong>, <strong>2</strong>, <strong>3</strong>, <strong>4</strong>, or <strong>5</strong>.</p>' +
-      '<p>Each question moves on after <strong>3 seconds</strong>, whether or not you have answered.</p>' +
+      '<p>After each clip, answer four questions by clicking <strong>1</strong>, <strong>2</strong>, <strong>3</strong>, <strong>4</strong>, or <strong>5</strong>.</p>' +
+      '<p>Each question moves on after <strong>4 seconds</strong>, whether or not you have answered.</p>' +
       '<p>Press ENTER to begin.</p>',
 
     consent:

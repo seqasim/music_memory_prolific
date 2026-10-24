@@ -39,6 +39,41 @@ function breakScreen(breakConfig) {
 }
 
 /**
+ * Row (or column) of choices. The matching key gets the selection box.
+ * @param {Array<{key: string, label: string}>} options
+ * @param {string} selectedKey
+ * @param {'row'|'column'} [layout]
+ * @returns {string}
+ */
+function choiceRowHtml(options, selectedKey, layout) {
+  const stack = layout === 'column';
+  const wrapStyle = stack
+    ? 'display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:16px;'
+    : 'display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin-top:16px;';
+  const items = (options || [])
+    .map((opt) => {
+      const selected = String(selectedKey ?? '') === String(opt.key) ? ' selected' : '';
+      return `<span class="orient-choice${selected}"><strong>${opt.key}</strong> = ${opt.label}</span>`;
+    })
+    .join('');
+  return `<div style="${wrapStyle}">${items}</div>`;
+}
+
+/**
+ * Brief screen that shows a boxed choice and records nothing in DataSaver.
+ * @param {function|string} stimulusFn
+ * @returns {object}
+ */
+function choiceFeedbackTrial(stimulusFn) {
+  return {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: stimulusFn,
+    choices: 'NO_KEYS',
+    trial_duration: CONFIG.choiceFeedbackMs,
+  };
+}
+
+/**
  * Audio check block: hear word, confirm, type answer.
  * Reused before encoding and survey (matches original task).
  */
@@ -237,6 +272,8 @@ if (typeof window !== 'undefined') {
   window.fixationHtml = fixationHtml;
   window.instructionTrial = instructionTrial;
   window.breakScreen = breakScreen;
+  window.choiceRowHtml = choiceRowHtml;
+  window.choiceFeedbackTrial = choiceFeedbackTrial;
   window.buildAudioCheckTimeline = buildAudioCheckTimeline;
   window.listStartTrial = listStartTrial;
   window.buildTestVerificationTimeline = buildTestVerificationTimeline;

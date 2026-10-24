@@ -27,9 +27,9 @@ Bundled birth cohort: 1993
 | Area | State |
 |------|-------|
 | Encoding / recall / survey / audio check / randomization | Complete; order is encoding, then recognition, then survey. Runs locally via `python3 -m http.server` |
-| Survey | 4 keypress items (1–5) per clip, 3 s auto-advance (`timed_out`) |
+| Survey | 4 clickable items (1–5) per clip, 4 s auto-advance (`timed_out`); the clicked choice is boxed briefly |
 | Consent | First screen; decline saves nothing and does not redirect |
-| SRE revisions (confidence, source, survey items, person-count orienting) | Complete — see `docs/PSYCHOPY_PORTING.md`, `docs/REVIEWER_CRITIQUE_RESPONSE.md`. The first F/J press during encoding is boxed. |
+| SRE revisions (confidence, source, survey items, person-count orienting) | Complete — see `docs/PSYCHOPY_PORTING.md`, `docs/REVIEWER_CRITIQUE_RESPONSE.md`. The first F/J press during encoding is boxed, and each memory-test choice (OLD/NEW, confidence, source) is boxed briefly after it is made. |
 | Memento10k metadata sidecar (`mem_score` / captions) | Complete — `stimuli/memento_video_meta.json` via `tools/export_memento_meta.py` |
 | Tidy CSV + localStorage backup | Complete; `finalize()` stamps `completed_session = 1` on all rows |
 | Experimenter short test (`test.html`) | Complete |
