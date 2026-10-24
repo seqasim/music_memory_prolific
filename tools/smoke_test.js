@@ -176,8 +176,22 @@ try {
   if (testContext.CONFIG.surveyQuestions.length !== 4) {
     throw new Error(`Expected 4 survey questions, got ${testContext.CONFIG.surveyQuestions.length}`);
   }
-  if (testContext.CONFIG.surveyQuestionTimeoutMs !== 3000) {
-    throw new Error('surveyQuestionTimeoutMs should be 3000');
+  if (testContext.CONFIG.surveyQuestionTimeoutMs !== 4000) {
+    throw new Error('surveyQuestionTimeoutMs should be 4000');
+  }
+  if (!Array.isArray(testContext.CONFIG.surveyScaleValues) || testContext.CONFIG.surveyScaleValues.join() !== '1,2,3,4,5') {
+    throw new Error('surveyScaleValues should be 1–5');
+  }
+  if (testContext.CONFIG.choiceFeedbackMs !== 400) {
+    throw new Error('choiceFeedbackMs should be 400');
+  }
+  const confidenceOptionKeys = (testContext.CONFIG.confidenceOptions || []).map((opt) => opt.key);
+  if (confidenceOptionKeys.join() !== Object.keys(testContext.CONFIG.confidenceKeys).join()) {
+    throw new Error('confidenceOptions keys should match confidenceKeys');
+  }
+  const sourceOptionKeys = (testContext.CONFIG.sourceOptions || []).map((opt) => opt.key);
+  if (sourceOptionKeys.join() !== Object.keys(testContext.CONFIG.sourceKeys).join()) {
+    throw new Error('sourceOptions keys should match sourceKeys');
   }
   const surveyTypes = Object.fromEntries(
     testContext.CONFIG.surveyQuestions.map((q) => [q.id, q.type || 'key_scale'])

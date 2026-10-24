@@ -8,7 +8,7 @@ Online files touched for these changes:
 
 - `js/config.js` — keys, prompts, survey items, instructions, session length
 - `js/encoding.js` — person-count orienting during video
-- `js/survey.js` — four 1–5 keypress items, 3 s timeout, after recognition
+- `js/survey.js` — four clickable 1–5 items, 4 s timeout, after recognition
 - `js/recall.js` — confidence + conditional source
 - `js/randomization.js` — `encodingCondition` on old recall trials; Memento mem scores
 - `js/datasaver.js` / `js/common.js` — logging and test verification
@@ -111,7 +111,7 @@ PsychoPy should load them once at session start.
 
 ---
 
-## 2. Survey: four keypress items, after recognition
+## 2. Survey: four clickable items, after recognition
 
 ### Rationale
 
@@ -126,8 +126,8 @@ Session order: encoding → recall → survey.
 
 Per clip: `preload → play music (6 s) → Q1 → Q2 → Q3 → Q4`
 
-Each question accepts keys **1–5** and ends after **3 seconds** if there is no
-keypress.
+Each question is five clickable buttons (**1–5**) and ends after **4 seconds**
+if there is no click. A click is boxed briefly before the next question.
 
 ### Question table
 
@@ -150,9 +150,10 @@ item with reliving. `liking` covers preference (and stands in for the dropped
 
 ### PsychoPy mapping
 
-- Keyboard, `allowedKeys` = `1`–`5`, force end of Routine = true.
-- Routine duration 3 s so a missed key still advances.
-- Store the key, or blank plus a timeout flag when the routine ends with no key.
+- Five mouse buttons labeled 1–5, force end of Routine = true.
+- Routine duration 4 s so a missed click still advances.
+- Store the clicked value, or blank plus a timeout flag when the routine ends with no click.
+- Brief boxed highlight of the clicked value before the next question.
 
 Music duration: first 6 s only (online uses `trial_duration: 6000`, not full file).
 
@@ -163,8 +164,8 @@ Music duration: first 6 s only (online uses `trial_duration: 6000`, not full fil
 | `phase` | `survey` |
 | `question` | item `id` (or `music_replay` for the play row) |
 | `response` | `1`–`5`, or blank on timeout |
-| `timed_out` | `1` if no keypress; otherwise blank |
-| `rt_ms` | keypress time, or blank on timeout |
+| `timed_out` | `1` if no click; otherwise blank |
+| `rt_ms` | click time, or blank on timeout |
 
 ---
 
@@ -286,8 +287,8 @@ Update welcome / break / recall intro text in PsychoPy to match `js/config.js`:
 - Session length: **about 60 minutes**
 - Consent screen before any task (Agree / Decline)
 - Part 1 mentions F/J person count; the first press is boxed on screen
-- Part 2 is the memory test (confidence and source-after-OLD)
-- Part 3 is music ratings (keys 1–5, 3 seconds per question)
+- Part 2 is the memory test (confidence and source-after-OLD); each choice is boxed briefly
+- Part 3 is music ratings (click 1–5, 4 seconds per question)
 - The break after encoding (`breaks.afterEncoding`) leads into the memory test and states the recall keys
 - The break after recall (`breaks.afterRecall`) leads into the survey
 

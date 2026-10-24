@@ -9,7 +9,7 @@ The whole session runs in one sitting (about 60 minutes). A consent screen comes
 
 1. **Encoding** — watch 108 short video clips; two thirds are accompanied by music; press F/J for person count during each video (the chosen label is boxed).
 2. **Recall** — old/new recognition on 216 videos (108 seen, 108 lures), then confidence; source memory after OLD responses.
-3. **Survey** — hear each of the 72 music clips again and answer 4 questions (keys 1–5, 3 seconds each). The survey follows recognition so hearing the songs again cannot change the memory-test answers.
+3. **Survey** — hear each of the 72 music clips again and answer 4 questions (click 1–5, 4 seconds each). The survey follows recognition so hearing the songs again cannot change the memory-test answers.
 
 ---
 
@@ -48,10 +48,11 @@ See [Before the first Prolific run](#before-the-first-prolific-run) for the rema
   encoding list plus 12 never-seen lures, shuffled. Fixation 750 ms, then the video; the participant
   presses **Left arrow = OLD** or **Right arrow = NEW**, then confidence (**1 = Sure, 2 = Maybe, 3 = Guess**).
   After OLD only: source memory (**1 = No music, 2 = Music you knew, 3 = Music you did not know**).
+  Each of those choices is boxed for a brief moment after it is made.
 - **Survey (after recall):** every music clip heard during encoding (36 MEAM + 36 control = 72) is replayed
-  for about 6 s, then rated with 4 items on keys **1–5**: familiarity; autobiographical memory
-  (none → vivid, specific memory); self-relevance; liking. Each question advances after 3 seconds
-  if there is no keypress (`timed_out = 1`, response blank).
+  for about 6 s, then rated with 4 items by clicking **1–5**: familiarity; autobiographical memory
+  (none → vivid, specific memory); self-relevance; liking. Each question advances after 4 seconds
+  if there is no click (`timed_out = 1`, response blank). A click is boxed briefly before the next question.
 - **Consent:** the first screen is a short Rutgers research-information page. Agree continues; Decline
   stops on a dead-end screen with no completion link and no saved data. An agreed session logs one
   `question = consent` row.
@@ -330,7 +331,7 @@ Notes for analysis:
 - Confidence: `phase = recall`, `question = confidence`; `response` is `sure` / `maybe` / `guess`.
 - Source: `phase = recall`, `question = source`; `response` is `no_music` / `knew` / `did_not_know`; `correct` scored vs encoding condition.
 - Encoding orienting: `phase = encoding`, `question = person_count`; `response` is `one_or_fewer` / `multiple`; `correct` blank when the label is `ambiguous`.
-- Survey ratings: `phase = survey`, `question != music_replay`; responses are `1`–`5`. A timeout leaves `response` blank, `rt_ms` blank, and `timed_out = 1`.
+- Survey ratings: `phase = survey`, `question != music_replay`; responses are `1`–`5` from a click. A timeout leaves `response` blank, `rt_ms` blank, and `timed_out = 1`.
 - Consent: `phase = consent`, `question = consent`, `response = agreed` (decline saves nothing).
 
 ---
@@ -341,7 +342,7 @@ Notes for analysis:
 |----------------|-------|
 | Fixation durations, list/trial counts, conditions per list | `js/config.js` top section |
 | Instruction and break text | `js/config.js` > `instructions`, `breaks` |
-| Survey questions, keys, 3 s timeout | `js/config.js` > `surveyQuestions`, `surveyResponseKeys`, `surveyQuestionTimeoutMs` |
+| Survey questions, click scale, 4 s timeout | `js/config.js` > `surveyQuestions`, `surveyScaleValues`, `surveyQuestionTimeoutMs` |
 | Confidence / source / person-count keys | `js/config.js` > `confidenceKeys`, `sourceKeys`, `encodingOrienting` |
 | Person-count labels | `stimuli/encoding_video_labels.json` (confirm before production) |
 | Memento memorability sidecar | `stimuli/memento_video_meta.json` via `tools/export_memento_meta.py` |

@@ -11,15 +11,55 @@
  * @returns {string}
  */
 function buildRecallChoicePrompt(selectedLabel) {
-  const boxStyle =
-    'border:4px solid #111;padding:14px 28px;border-radius:8px;display:inline-block;background:#f5f5f5;';
-  const oldStyle = selectedLabel === 'old' ? boxStyle + 'margin-right:48px;' : 'margin-right:48px;';
-  const newStyle = selectedLabel === 'new' ? boxStyle : '';
+  const oldClass = selectedLabel === 'old' ? 'orient-choice selected' : 'orient-choice';
+  const newClass = selectedLabel === 'new' ? 'orient-choice selected' : 'orient-choice';
 
   return (
     '<p style="margin-top:24px;font-size:28px;">' +
-    `<span style="${oldStyle}"><strong>← OLD</strong></span>` +
-    `<span style="${newStyle}"><strong>NEW →</strong></span></p>`
+    `<span class="${oldClass}" style="margin-right:48px;"><strong>← OLD</strong></span>` +
+    `<span class="${newClass}"><strong>NEW →</strong></span></p>`
+  );
+}
+
+/**
+ * Most recent recall trial of a subphase.
+ * @param {string} subphase
+ * @returns {object|undefined}
+ */
+function lastRecallSubphase(subphase) {
+  return jsPsych.data.get().filter({ phase: 'recall', subphase }).last(1).values()[0];
+}
+
+/**
+ * OLD/NEW label from the latest recognition trial.
+ * @returns {'old'|'new'|''}
+ */
+function lastRecognitionLabel() {
+  const last = lastRecallSubphase('recognition');
+  return last?.recall_response || recallResponseLabel(last?.response) || '';
+}
+
+/**
+ * Confidence prompt, with the pressed key boxed when selectedKey is set.
+ * @param {string} selectedKey
+ * @returns {string}
+ */
+function confidencePromptHtml(selectedKey) {
+  return (
+    '<p style="font-size:28px;margin-top:24px;"><strong>How sure are you?</strong></p>' +
+    choiceRowHtml(CONFIG.confidenceOptions, selectedKey || '')
+  );
+}
+
+/**
+ * Source prompt, stacked, with the pressed key boxed when selectedKey is set.
+ * @param {string} selectedKey
+ * @returns {string}
+ */
+function sourcePromptHtml(selectedKey) {
+  return (
+    '<p style="font-size:28px;margin-top:24px;"><strong>When you saw this video, was there:</strong></p>' +
+    choiceRowHtml(CONFIG.sourceOptions, selectedKey || '', 'column')
   );
 }
 
@@ -122,7 +162,8 @@ function buildRecallTimeline(assignment, recallVideoPaths) {
 }
 
 /**
- * One recall trial: fixation → video+OLD/NEW → confidence → [source if OLD].
+ * One recall trial: fixation → video+OLD/NEW → boxed hold → confidence →
+ * boxed hold → [source → boxed hold if OLD].
  * Confidence and source are logged as separate rows (question column).
  * @param {object} trial
  * @returns {object}
@@ -191,17 +232,18 @@ function buildRecallTrial(trial) {
     },
   };
 
+  const recognitionFeedback = choiceFeedbackTrial(() =>
+    wrapHtml(buildRecallChoicePrompt(lastRecognitionLabel()))
+  );
+
   const confidence = {
     type: jsPsychHtmlKeyboardResponse,
-    stimulus: () => {
-      const last = jsPsych.data.get().last(1).values()[0];
-      const responseLabel = last?.recall_response || recallResponseLabel(last?.response);
-      return wrapHtml(buildRecallChoicePrompt(responseLabel) + CONFIG.confidencePrompt);
-    },
+    stimulus: () => wrapHtml(buildRecallChoicePrompt(lastRecognitionLabel()) + confidencePromptHtml('')),
     choices: confidenceChoices,
     response_ends_trial: true,
     on_finish: (data) => {
       const confLabel = confidenceResponseLabel(data.response);
+      data.confidence_key = data.response;
       data.confidence_label = confLabel;
       DataSaver.logTrial({
         phase: 'recall',
@@ -228,15 +270,23 @@ function buildRecallTrial(trial) {
     },
   };
 
+  const confidenceFeedback = choiceFeedbackTrial(() => {
+    const last = lastRecallSubphase('confidence');
+    return wrapHtml(
+      buildRecallChoicePrompt(lastRecognitionLabel()) + confidencePromptHtml(last?.confidence_key || '')
+    );
+  });
+
   const source = {
     timeline: [
       {
         type: jsPsychHtmlKeyboardResponse,
-        stimulus: wrapHtml(CONFIG.sourcePrompt),
+        stimulus: wrapHtml(sourcePromptHtml('')),
         choices: sourceChoices,
         response_ends_trial: true,
         on_finish: (data) => {
           const srcLabel = sourceResponseLabel(data.response);
+          data.source_key = data.response;
           const expected = expectedSourceLabel(trial.encodingCondition);
           const sourceCorrect =
             expected && srcLabel ? (srcLabel === expected ? 1 : 0) : '';
@@ -266,21 +316,16 @@ function buildRecallTrial(trial) {
           condition: trial.encodingCondition || '',
         },
       },
+      choiceFeedbackTrial(() => {
+        const last = lastRecallSubphase('source');
+        return wrapHtml(sourcePromptHtml(last?.source_key || ''));
+      }),
     ],
-    conditional_function: () => {
-      const lastRecognition = jsPsych.data
-        .get()
-        .filter({ phase: 'recall', subphase: 'recognition' })
-        .last(1)
-        .values()[0];
-      const responseLabel =
-        lastRecognition?.recall_response || recallResponseLabel(lastRecognition?.response);
-      return responseLabel === 'old';
-    },
+    conditional_function: () => lastRecognitionLabel() === 'old',
   };
 
   return {
-    timeline: [fixation, videoAndResponse, confidence, source],
+    timeline: [fixation, videoAndResponse, recognitionFeedback, confidence, confidenceFeedback, source],
   };
 }
 
