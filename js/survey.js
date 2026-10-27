@@ -97,11 +97,9 @@ function surveyFeedbackHtml(q, selectedValue) {
  */
 function surveyTimerPrompt() {
   const seconds = CONFIG.surveyQuestionTimeoutMs / 1000;
-  return (
-    `<p style="font-size:18px;margin-top:18px;">Click 1–5. This question moves on after ${seconds} seconds.</p>` +
-    '<div class="survey-timer-track">' +
-    `<div class="survey-timer-bar" style="animation-duration:${CONFIG.surveyQuestionTimeoutMs}ms;"></div>` +
-    '</div>'
+  return responseTimerPrompt(
+    CONFIG.surveyQuestionTimeoutMs,
+    `Click 1–5. This question moves on after ${seconds} seconds.`
   );
 }
 
@@ -138,6 +136,7 @@ function buildSurveyQuestionTrial(q, trial, clipIndex, totalClips) {
       const value = timedOut ? '' : String(CONFIG.surveyScaleValues[data.response]);
       data.survey_timed_out = timedOut ? 1 : 0;
       data.survey_value = value;
+      noteTaskResponse(!timedOut);
       DataSaver.logTrial({
         ...baseLog,
         response: value,

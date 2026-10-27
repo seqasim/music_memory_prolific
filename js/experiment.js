@@ -151,15 +151,29 @@ function buildSessionEndTimeline({ participant, prolificPid, onPavlovia }) {
 }
 
 /**
- * Final screen: redirect to Prolific when configured, always show a fallback link.
+ * Completion code embedded in a Prolific completion URL (`cc=`).
+ * @param {string} url
+ * @returns {string}
+ */
+function prolificCompletionCode(url) {
+  try {
+    return new URL(url).searchParams.get('cc') || '';
+  } catch (error) {
+    const match = String(url).match(/[?&]cc=([^&]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+}
+
+/**
+ * Final screen: redirect to Prolific when configured.
+ * If the redirect does not happen, a click reveals the completion code for manual entry.
  * @param {{ prolificPid: string|null }} opts
  */
 function buildCompletionTrial({ prolificPid }) {
   const completionUrl = (CONFIG.prolific && CONFIG.prolific.completionUrl) || '';
-  const canRedirect =
-    !!prolificPid &&
-    !!completionUrl &&
-    !completionUrl.includes('REPLACE_ME');
+  const completionCode = prolificCompletionCode(completionUrl);
+  const codeReady = !!completionCode && completionCode !== 'REPLACE_ME';
+  const canRedirect = !!prolificPid && codeReady;
 
   return {
     type: jsPsychHtmlKeyboardResponse,
@@ -173,13 +187,17 @@ function buildCompletionTrial({ prolificPid }) {
           '<p style="color:#a00;"><strong>Data upload may have failed.</strong> ' +
           'Please contact the researcher and keep this window open if possible.</p>';
       }
-      if (completionUrl) {
-        const label = canRedirect
-          ? 'Click here if you are not redirected'
-          : 'Completion link (replace REPLACE_ME in CONFIG.prolific.completionUrl before going live)';
+      if (codeReady) {
         html +=
-          `<p style="margin-top:24px;"><a href="${completionUrl}" id="prolific-completion-link" ` +
-          `style="font-size:22px;">${label}</a></p>`;
+          '<p style="margin-top:24px;">' +
+          '<button type="button" id="prolific-completion-reveal" ' +
+          'style="font-size:22px;background:none;border:none;padding:0;color:#0645ad;' +
+          'text-decoration:underline;cursor:pointer;font-family:Arial,sans-serif;">' +
+          'Click here if you are not redirected</button></p>' +
+          '<p id="prolific-completion-code" hidden ' +
+          'style="font-size:36px;font-weight:bold;letter-spacing:0.08em;margin:16px 0 8px;">' +
+          `${completionCode}</p>` +
+          '<p id="prolific-completion-code-note" hidden style="font-size:20px;">Enter this code on Prolific.</p>';
       }
       if (!prolificPid) {
         html += '<p style="color:#555;font-size:18px;">No Prolific ID was supplied; you can close this window.</p>';
@@ -187,6 +205,16 @@ function buildCompletionTrial({ prolificPid }) {
       return wrapHtml(html);
     },
     on_load: () => {
+      const reveal = document.getElementById('prolific-completion-reveal');
+      if (reveal) {
+        reveal.addEventListener('click', () => {
+          const code = document.getElementById('prolific-completion-code');
+          const note = document.getElementById('prolific-completion-code-note');
+          if (code) code.hidden = false;
+          if (note) note.hidden = false;
+          reveal.hidden = true;
+        });
+      }
       if (canRedirect) {
         window.setTimeout(() => {
           window.location.replace(completionUrl);

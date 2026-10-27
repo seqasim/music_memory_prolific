@@ -16,17 +16,16 @@ const CONFIG = {
   defaultBirthYear: 1993,
 
   /**
-   * Prolific study settings. Replace completionUrl's REPLACE_ME with the real
-   * completion code from the Prolific study editor before going live.
+   * Prolific study settings. completionUrl is the study's completion link.
    */
   prolific: {
-    completionUrl: 'https://app.prolific.com/submissions/complete?cc=REPLACE_ME',
+    completionUrl: 'https://app.prolific.com/submissions/complete?cc=CXVPN5MG',
     pidParam: 'PROLIFIC_PID',
     studyParam: 'STUDY_ID',
     sessionParam: 'SESSION_ID',
   },
 
-  /** If true, block phones/tablets (arrow keys required for recall). */
+  /** If true, block phones and tablets. */
   requireDesktop: true,
 
   /**
@@ -78,13 +77,39 @@ const CONFIG = {
   recallVideoStartMs: 1000,
 
   /**
-   * Maximum time to wait for a recall response after video ends.
-   * null = wait indefinitely (original had open-ended keyboard).
+   * Unused. Recognition ends on an OLD/NEW click, at responseTimeoutMs,
+   * or when the video ends, whichever comes first.
    */
   recallResponseTimeoutMs: null,
 
   /** How long a boxed choice stays on screen before the next screen. */
   choiceFeedbackMs: 400,
+
+  /**
+   * Click deadline for person-count, old/new, confidence, and each survey
+   * rating. A click ends the screen. No click advances at this time.
+   */
+  responseTimeoutMs: 3000,
+
+  /**
+   * Music question after OLD, and the fixation that replaces it after NEW
+   * or a missed old/new click. A click is saved, and the screen still runs
+   * for this full duration.
+   */
+  sourceResponseMs: 2000,
+
+  /** Instruction and break screens advance on Enter or after this long. */
+  instructionMaxMs: 120000,
+
+  /**
+   * Consecutive missed task responses (person-count, old/new, confidence,
+   * source, or a survey rating) before the on-screen warning appears.
+   * Any real response resets the streak.
+   */
+  attention: {
+    consecutiveMissLimit: 3,
+    bannerText: 'missed responses may disqualify you as a bot',
+  },
 
   // -------------------------------------------------------------------------
   // Response keys
@@ -130,20 +155,16 @@ const CONFIG = {
   ],
 
   /**
-   * Encoding orienting judgment (during video; does not end the trial).
-   * Keys differ from recall arrows to avoid carry-over.
+   * Encoding orienting judgment (during video; a click does not end the trial).
+   * oneKey / multipleKey remain so older key responses still map to labels.
+   * Button order is the saved index: 0 = one or fewer, 1 = more than one.
    * Count people only (animals / empty scenes → one or fewer).
    */
   encodingOrienting: {
     oneKey: 'f',
     multipleKey: 'j',
+    choices: ['One person or fewer', 'More than one person'],
     labelsPath: 'stimuli/encoding_video_labels.json',
-    prompt:
-      '<p style="margin-top:12px;font-size:22px;">' +
-      '<span id="orient-one" class="orient-choice" style="margin-right:48px;">' +
-      '<strong>F</strong> = One person or fewer</span>' +
-      '<span id="orient-multiple" class="orient-choice">' +
-      '<strong>J</strong> = More than one person</span></p>',
   },
 
   /** Memento10k memorability / caption sidecar (analysis covariates; not shown). */
@@ -159,14 +180,19 @@ const CONFIG = {
   /** Clickable scale values for each survey item. */
   surveyScaleValues: [1, 2, 3, 4, 5],
 
-  /** Auto-advance each survey question after this long, answered or not. */
-  surveyQuestionTimeoutMs: 4000,
+  /**
+   * Auto-advance each survey question after this long, answered or not.
+   * Kept equal to responseTimeoutMs.
+   */
+  get surveyQuestionTimeoutMs() {
+    return this.responseTimeoutMs;
+  },
 
   /**
-   * How long to play each survey music clip (ms). Matches approximate encoding
-   * exposure (fixation + video ≈ 6 s); full MP3 files are longer.
+   * How long to play each survey music clip (ms). Full files are longer;
+   * only this opening portion is played.
    */
-  surveyMusicMs: 6000,
+  surveyMusicMs: 3000,
 
   /**
    * Questions shown after each music clip during the survey phase.
@@ -233,17 +259,20 @@ const CONFIG = {
         'Great job! You have finished watching the videos.<br><br>' +
         'Next is the memory test. You will see videos and decide whether each one is ' +
         'OLD (seen before) or NEW (not seen before).<br><br>' +
-        'Use the LEFT arrow for OLD and the RIGHT arrow for NEW.<br><br>' +
-        'After each decision you will rate how sure you are (1 = Sure, 2 = Maybe, 3 = Guess). ' +
-        'If you say OLD, you will also answer whether there was music with that video.<br><br>' +
+        'Click <strong>OLD</strong> or <strong>NEW</strong>. ' +
+        'Each decision moves on after <strong>3 seconds</strong>.<br><br>' +
+        'Then click how sure you are: <strong>Sure</strong>, <strong>Maybe</strong>, or <strong>Guess</strong>. ' +
+        'That also moves on after <strong>3 seconds</strong>. ' +
+        'If you click OLD, you will answer whether there was music. ' +
+        'That question stays on screen for <strong>2 seconds</strong>.<br><br>' +
         'Press ENTER when you are ready.',
     },
     afterRecall: {
       title: 'Memory test complete',
       text:
-        'Last part: you will hear each music clip again for about 6 seconds and answer four short questions about each one.<br><br>' +
+        'Last part: you will hear the first <strong>3 seconds</strong> of each music clip again and answer four short questions about each one.<br><br>' +
         'Click a number from <strong>1</strong> to <strong>5</strong>. ' +
-        'Each question moves on after <strong>4 seconds</strong>.<br><br>' +
+        'Each question moves on after <strong>3 seconds</strong>.<br><br>' +
         'Press ENTER when you are ready to continue.',
     },
   },
@@ -263,20 +292,25 @@ const CONFIG = {
       '<li style="margin-bottom:12px;"><strong>Part 1 — Videos.</strong> ' +
       'You will watch short video clips. Some play with music in the background. ' +
       'Between clips, look at the fixation cross (+). ' +
-      'While each video plays, press <strong>F</strong> if there is <strong>one person or fewer</strong> ' +
-      'or <strong>J</strong> if there is <strong>more than one person</strong> (count people only). ' +
+      'While each video plays, click <strong>One person or fewer</strong> or ' +
+      '<strong>More than one person</strong> (count people only). ' +
+      'You have <strong>3 seconds</strong> to click. The video keeps playing. ' +
       'Try to remember the videos.</li>' +
       '<li style="margin-bottom:12px;"><strong>Part 2 — Memory test.</strong> ' +
-      'You will see videos and decide whether each is <strong>OLD</strong> (seen in Part 1) ' +
+      'You will see videos and click <strong>OLD</strong> (seen in Part 1) ' +
       'or <strong>NEW</strong> (not seen before). ' +
-      '<strong>LEFT arrow</strong> = OLD &nbsp;&nbsp; <strong>RIGHT arrow</strong> = NEW. ' +
-      'Then rate how sure you are. If you say OLD, you will also answer a short question about music.</li>' +
+      'Each decision moves on after <strong>3 seconds</strong>. ' +
+      'Then click how sure you are: Sure, Maybe, or Guess. ' +
+      'If you click OLD, you will also answer a short question about music. ' +
+      'That question stays on screen for <strong>2 seconds</strong>.</li>' +
       '<li style="margin-bottom:12px;"><strong>Part 3 — Music ratings.</strong> ' +
-      'You will hear again each piece of music that played with a video. ' +
-      'Each clip lasts about <strong>6 seconds</strong>. ' +
+      'You will hear again the first <strong>3 seconds</strong> of each piece of music that played with a video. ' +
       'Then you will answer four short questions by clicking a number from <strong>1</strong> to <strong>5</strong>. ' +
-      'Each question moves on after <strong>4 seconds</strong>.</li>' +
+      'Each question moves on after <strong>3 seconds</strong>.</li>' +
       '</ol>' +
+      '<p class="bot-warning" style="color:#c00000;font-weight:bold;">' +
+      'If you fail to respond to the person-count question, or if you make random selections, ' +
+      'you may be filtered out as an AI bot.</p>' +
       '<p>Before Part 1 and again before Part 3, there is a short audio check. ' +
       'You will also see brief breaks between blocks. Press <strong>ENTER</strong> to advance instruction screens.</p>' +
       '<p>Press ENTER to continue.</p>',
@@ -290,22 +324,22 @@ const CONFIG = {
     encodingOrientingIntro:
       '<h2>Video judgments</h2>' +
       '<p>While each video plays, decide how many <strong>people</strong> are in the clip.</p>' +
-      '<p><strong>F</strong> = One person or fewer &nbsp;&nbsp; <strong>J</strong> = More than one person</p>' +
-      '<p>Count people only (not animals). If there are no people, press <strong>F</strong>.</p>' +
-      '<p>Press once as soon as you can. The video will keep playing until it ends.</p>' +
+      '<p>Click <strong>One person or fewer</strong> or <strong>More than one person</strong>.</p>' +
+      '<p>Count people only (not animals). If there are no people, click <strong>One person or fewer</strong>.</p>' +
+      '<p>You have <strong>3 seconds</strong> to click. The video will keep playing until it ends.</p>' +
       '<p>Also try to remember each video for a later memory test.</p>' +
       '<p>Press ENTER to continue.</p>',
 
     encodingListStart:
       '<p>A new block is about to begin.</p>' +
-      '<p><strong>F</strong> = One person or fewer &nbsp;&nbsp; <strong>J</strong> = More than one person</p>' +
+      '<p>Click <strong>One person or fewer</strong> or <strong>More than one person</strong>. You have <strong>3 seconds</strong>.</p>' +
       '<p>Press ENTER to start.</p>',
 
     surveyIntro:
       '<h2>Music survey</h2>' +
-      '<p>You will hear music clips one at a time. Each clip plays for about <strong>6 seconds</strong>.</p>' +
+      '<p>You will hear music clips one at a time. Each clip plays for <strong>3 seconds</strong>.</p>' +
       '<p>After each clip, answer four questions by clicking <strong>1</strong>, <strong>2</strong>, <strong>3</strong>, <strong>4</strong>, or <strong>5</strong>.</p>' +
-      '<p>Each question moves on after <strong>4 seconds</strong>, whether or not you have answered.</p>' +
+      '<p>Each question moves on after <strong>3 seconds</strong>, whether or not you have answered.</p>' +
       '<p>Press ENTER to begin.</p>',
 
     consent:
@@ -317,7 +351,8 @@ const CONFIG = {
       '<p>You are invited to take part in a research study at Rutgers University. Participation is completely voluntary.</p>' +
       '<p><strong>Purpose.</strong> To understand how people remember past experiences.</p>' +
       '<p><strong>What you will do.</strong> You will complete one online memory task (videos, a memory test, and short music ratings) on Pavlovia. The session takes about <strong>60 minutes</strong>.</p>' +
-      '<p><strong>Payment.</strong> You will receive <strong>$12.00 per hour</strong> through Prolific when you finish.</p>' +
+      '<p><strong>Payment.</strong> You will receive <strong>$12.00</strong> through Prolific for completing this session. ' +
+      'The session is designed to take about <strong>60 minutes</strong>. You will not be paid extra for taking longer.</p>' +
       '<p><strong>Risks.</strong> Risks are minimal: mild eye strain, boredom, or tiredness from a computer task. There are rest breaks between blocks.</p>' +
       '<p><strong>Benefits.</strong> There is no direct benefit to you. The study may help researchers understand memory.</p>' +
       '<p><strong>Privacy.</strong> We do not collect your name, IP address, medical information, or contact details. Research records use only the temporary Prolific ID from the study link.</p>' +
@@ -344,11 +379,11 @@ const CONFIG = {
     endWithRedirect:
       '<h2>Thank you!</h2>' +
       '<p>You have completed the task. Your data are being saved.</p>' +
-      '<p>If you are not redirected automatically, click the link below to return to Prolific.</p>',
+      '<p>If you are not redirected automatically, click below to show your completion code and enter it on Prolific.</p>',
 
     mobileBlocked:
       '<h2>Desktop required</h2>' +
-      '<p>This study must be completed on a computer with a keyboard (arrow keys are required).</p>' +
+      '<p>This study must be completed on a desktop or laptop computer.</p>' +
       '<p>Please reopen the study link on a desktop or laptop, then return to Prolific if needed.</p>',
 
     setupError:

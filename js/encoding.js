@@ -63,6 +63,8 @@ function encodingSceneLabel(videoPath) {
  * @returns {'one_or_fewer'|'multiple'|''}
  */
 function encodingOrientingLabel(response) {
+  if (response === 0) return 'one_or_fewer';
+  if (response === 1) return 'multiple';
   const key = String(response ?? '').toLowerCase();
   if (key === CONFIG.encodingOrienting.oneKey.toLowerCase()) return 'one_or_fewer';
   if (key === CONFIG.encodingOrienting.multipleKey.toLowerCase()) return 'multiple';
@@ -103,7 +105,8 @@ function buildEncodingTimeline(assignment) {
         timeline: [
           listStartTrial(
             `Block ${listNum} of ${CONFIG.numLists}` +
-              '<br><br><strong>F</strong> = One person or fewer &nbsp;&nbsp; <strong>J</strong> = More than one person'
+              '<br><br>Click <strong>One person or fewer</strong> or <strong>More than one person</strong>.' +
+              '<br>You have <strong>3 seconds</strong>.'
           ),
           ...trialNodes,
           {
@@ -142,9 +145,6 @@ function buildEncodingTimeline(assignment) {
  * @returns {Array}
  */
 function buildEncodingTrialPair(trial) {
-  const oneKey = CONFIG.encodingOrienting.oneKey;
-  const multipleKey = CONFIG.encodingOrienting.multipleKey;
-
   const fixation = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: fixationHtml(),
@@ -167,42 +167,48 @@ function buildEncodingTrialPair(trial) {
     },
   };
 
-  let orientHandler = null;
+  let releaseChoiceButtons = null;
+  let notedOrientingResponse = false;
 
   const video = {
-    type: jsPsychVideoKeyboardResponse,
+    type: jsPsychVideoButtonResponse,
     stimulus: [trial.videoPath],
-    choices: [oneKey, multipleKey, oneKey.toUpperCase(), multipleKey.toUpperCase()],
+    choices: CONFIG.encodingOrienting.choices,
+    button_html: choiceButtonHtml(),
     controls: false,
     trial_ends_after_video: true,
     response_ends_trial: false,
     width: 800,
     height: 450,
-    prompt: wrapHtml(CONFIG.encodingOrienting.prompt),
+    prompt: responseTimerPrompt(
+      CONFIG.responseTimeoutMs,
+      'Click one answer. You have 3 seconds. The video keeps playing.'
+    ),
     on_load: () => {
-      orientHandler = (event) => {
-        const key = String(event.key || '').toLowerCase();
-        const one = oneKey.toLowerCase();
-        const multiple = multipleKey.toLowerCase();
-        if (key !== one && key !== multiple) return;
-        const targetId = key === one ? 'orient-one' : 'orient-multiple';
-        const target = document.getElementById(targetId);
-        if (target) target.classList.add('selected');
-        document.removeEventListener('keydown', orientHandler);
-        orientHandler = null;
-      };
-      document.addEventListener('keydown', orientHandler);
+      releaseChoiceButtons = armChoiceButtons('jspsych-video-button-response-btngroup', {
+        deadlineMs: CONFIG.responseTimeoutMs,
+        onPick: () => {
+          if (notedOrientingResponse) return;
+          notedOrientingResponse = true;
+          noteTaskResponse(true);
+        },
+      });
     },
     on_finish: (data) => {
-      if (orientHandler) {
-        document.removeEventListener('keydown', orientHandler);
-        orientHandler = null;
+      if (releaseChoiceButtons) {
+        releaseChoiceButtons();
+        releaseChoiceButtons = null;
       }
       if (window._encodingAudio) {
         window._encodingAudio.pause();
         window._encodingAudio = null;
       }
-      const responseLabel = encodingOrientingLabel(data.response);
+      const inTime = typeof data.rt === 'number' && data.rt <= CONFIG.responseTimeoutMs;
+      const responseLabel = inTime ? encodingOrientingLabel(data.response) : '';
+      if (!notedOrientingResponse) {
+        notedOrientingResponse = true;
+        noteTaskResponse(!!responseLabel);
+      }
       const sceneLabel = encodingSceneLabel(trial.videoPath);
       const correct = encodingOrientingCorrect(responseLabel, sceneLabel);
 
@@ -216,7 +222,8 @@ function buildEncodingTrialPair(trial) {
         question: 'person_count',
         response: responseLabel || '',
         correct,
-        rt_ms: data.rt ?? '',
+        rt_ms: responseLabel ? (data.rt ?? '') : '',
+        timed_out: responseLabel ? 0 : 1,
         mem_score: trial.memScore ?? '',
         mem_alpha: trial.memAlpha ?? '',
       });

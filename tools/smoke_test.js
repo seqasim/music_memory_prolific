@@ -146,11 +146,20 @@ try {
   if (testContext.recallResponseLabel('arrowleft') !== 'old') {
     throw new Error('recallResponseLabel should map arrowleft to old');
   }
+  if (testContext.recallResponseLabel(0) !== 'old' || testContext.recallResponseLabel(1) !== 'new') {
+    throw new Error('recallResponseLabel should map click indexes 0 and 1');
+  }
   if (testContext.recallResponseLabel('ArrowRight') !== 'new') {
     throw new Error('recallResponseLabel should map ArrowRight to new');
   }
+  if (testContext.confidenceResponseLabel(0) !== 'sure' || testContext.confidenceResponseLabel(2) !== 'guess') {
+    throw new Error('confidenceResponseLabel should map click indexes to sure and guess');
+  }
   if (testContext.confidenceResponseLabel('1') !== 'sure') {
     throw new Error('confidenceResponseLabel should map 1 to sure');
+  }
+  if (testContext.sourceResponseLabel(0) !== 'no_music' || testContext.sourceResponseLabel(1) !== 'knew') {
+    throw new Error('sourceResponseLabel should map click indexes to no_music and knew');
   }
   if (testContext.sourceResponseLabel('2') !== 'knew') {
     throw new Error('sourceResponseLabel should map 2 to knew');
@@ -176,8 +185,32 @@ try {
   if (testContext.CONFIG.surveyQuestions.length !== 4) {
     throw new Error(`Expected 4 survey questions, got ${testContext.CONFIG.surveyQuestions.length}`);
   }
-  if (testContext.CONFIG.surveyQuestionTimeoutMs !== 4000) {
-    throw new Error('surveyQuestionTimeoutMs should be 4000');
+  if (testContext.CONFIG.responseTimeoutMs !== 3000) {
+    throw new Error('responseTimeoutMs should be 3000');
+  }
+  if (testContext.CONFIG.surveyQuestionTimeoutMs !== 3000) {
+    throw new Error('surveyQuestionTimeoutMs should follow the 3 second response limit');
+  }
+  if (testContext.CONFIG.sourceResponseMs !== 2000) {
+    throw new Error('sourceResponseMs should be 2000');
+  }
+  if (testContext.CONFIG.surveyMusicMs !== 3000) {
+    throw new Error('surveyMusicMs should be 3000');
+  }
+  if (testContext.CONFIG.instructionMaxMs !== 120000) {
+    throw new Error('instructionMaxMs should be 2 minutes');
+  }
+  if (!String(testContext.CONFIG.instructions.consent).includes('$12.00')) {
+    throw new Error('consent should state the $12 payment');
+  }
+  if (String(testContext.CONFIG.instructions.consent).includes('per hour')) {
+    throw new Error('consent should not promise hourly pay');
+  }
+  if (
+    !testContext.CONFIG.encodingOrienting.choices ||
+    testContext.CONFIG.encodingOrienting.choices.join('|') !== 'One person or fewer|More than one person'
+  ) {
+    throw new Error('person-count choices should be the two click labels');
   }
   if (!Array.isArray(testContext.CONFIG.surveyScaleValues) || testContext.CONFIG.surveyScaleValues.join() !== '1,2,3,4,5') {
     throw new Error('surveyScaleValues should be 1–5');
@@ -219,11 +252,41 @@ try {
       throw new Error(`Survey should not include dropped item ${dropped}`);
     }
   }
-  if (!String(testContext.CONFIG.encodingOrienting.prompt).includes('id="orient-one"')) {
-    throw new Error('encoding orienting prompt should mark the F choice');
+  if (String(testContext.CONFIG.instructions.welcome).includes('LEFT arrow')) {
+    throw new Error('welcome should describe clicks rather than arrow keys');
   }
   if (!testContext.CONFIG.instructions.consent || !testContext.CONFIG.instructions.consentDeclined) {
     throw new Error('consent instructions should be set');
+  }
+  if (!String(testContext.CONFIG.instructions.welcome).includes('class="bot-warning"')) {
+    throw new Error('welcome instructions should include the red bot-screening warning');
+  }
+  if (
+    !String(testContext.CONFIG.instructions.welcome).includes(
+      'filtered out as an AI bot'
+    )
+  ) {
+    throw new Error('welcome instructions should warn that non-response or random answers may filter bots');
+  }
+  if (testContext.CONFIG.attention?.consecutiveMissLimit !== 3) {
+    throw new Error('attention.consecutiveMissLimit should be 3');
+  }
+  if (testContext.CONFIG.attention?.bannerText !== 'missed responses may disqualify you as a bot') {
+    throw new Error('attention.bannerText should match the on-screen warning');
+  }
+  loadScript('js/common.js', testContext);
+  testContext._consecutiveMisses = 0;
+  if (testContext.noteTaskResponse(false) !== false || testContext._consecutiveMisses !== 1) {
+    throw new Error('one miss should not show the banner');
+  }
+  if (testContext.noteTaskResponse(false) !== false || testContext._consecutiveMisses !== 2) {
+    throw new Error('two misses should not show the banner');
+  }
+  if (testContext.noteTaskResponse(false) !== true || testContext._consecutiveMisses !== 3) {
+    throw new Error('three misses in a row should show the banner');
+  }
+  if (testContext.noteTaskResponse(true) !== false || testContext._consecutiveMisses !== 0) {
+    throw new Error('a real response should clear the miss streak and hide the banner');
   }
   if (!testContext.CONFIG.breaks.afterRecall) {
     throw new Error('breaks.afterRecall should lead into the survey');
@@ -242,6 +305,9 @@ try {
   }
   if (testContext.encodingOrientingLabel('j') !== 'multiple') {
     throw new Error('encodingOrientingLabel(j) should be multiple');
+  }
+  if (testContext.encodingOrientingLabel(0) !== 'one_or_fewer' || testContext.encodingOrientingLabel(1) !== 'multiple') {
+    throw new Error('encodingOrientingLabel should map click indexes 0 and 1');
   }
   if (testContext.encodingOrientingCorrect('one_or_fewer', 'one_or_fewer') !== 1) {
     throw new Error('orienting correct should be 1 for matching labels');

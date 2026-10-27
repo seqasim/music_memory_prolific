@@ -11,13 +11,11 @@
  * @returns {string}
  */
 function buildRecallChoicePrompt(selectedLabel) {
-  const oldClass = selectedLabel === 'old' ? 'orient-choice selected' : 'orient-choice';
-  const newClass = selectedLabel === 'new' ? 'orient-choice selected' : 'orient-choice';
-
+  const labels = ['OLD', 'NEW'];
+  const selectedIndex = selectedLabel === 'old' ? 0 : selectedLabel === 'new' ? 1 : -1;
   return (
-    '<p style="margin-top:24px;font-size:28px;">' +
-    `<span class="${oldClass}" style="margin-right:48px;"><strong>← OLD</strong></span>` +
-    `<span class="${newClass}"><strong>NEW →</strong></span></p>`
+    '<p style="font-size:28px;margin-top:24px;"><strong>Was this video</strong></p>' +
+    clickChoiceRowHtml(labels, selectedIndex)
   );
 }
 
@@ -45,9 +43,11 @@ function lastRecognitionLabel() {
  * @returns {string}
  */
 function confidencePromptHtml(selectedKey) {
+  const labels = CONFIG.confidenceOptions.map((opt) => opt.label);
+  const selectedIndex = CONFIG.confidenceOptions.findIndex((opt) => opt.key === selectedKey);
   return (
     '<p style="font-size:28px;margin-top:24px;"><strong>How sure are you?</strong></p>' +
-    choiceRowHtml(CONFIG.confidenceOptions, selectedKey || '')
+    clickChoiceRowHtml(labels, selectedIndex)
   );
 }
 
@@ -57,9 +57,11 @@ function confidencePromptHtml(selectedKey) {
  * @returns {string}
  */
 function sourcePromptHtml(selectedKey) {
+  const labels = CONFIG.sourceOptions.map((opt) => opt.label);
+  const selectedIndex = CONFIG.sourceOptions.findIndex((opt) => opt.key === selectedKey);
   return (
     '<p style="font-size:28px;margin-top:24px;"><strong>When you saw this video, was there:</strong></p>' +
-    choiceRowHtml(CONFIG.sourceOptions, selectedKey || '', 'column')
+    clickChoiceRowHtml(labels, selectedIndex, 'column')
   );
 }
 
@@ -69,7 +71,9 @@ function sourcePromptHtml(selectedKey) {
  * @returns {'old'|'new'|''}
  */
 function recallResponseLabel(response) {
-  const key = response?.toLowerCase();
+  if (response === 0) return 'old';
+  if (response === 1) return 'new';
+  const key = response?.toLowerCase?.();
   if (key === CONFIG.recallKeys.old.toLowerCase()) return 'old';
   if (key === CONFIG.recallKeys.new.toLowerCase()) return 'new';
   return '';
@@ -81,6 +85,10 @@ function recallResponseLabel(response) {
  * @returns {string}
  */
 function confidenceResponseLabel(response) {
+  if (typeof response === 'number') {
+    const opt = CONFIG.confidenceOptions[response];
+    return opt ? CONFIG.confidenceKeys[opt.key] || '' : '';
+  }
   const key = String(response ?? '');
   return CONFIG.confidenceKeys[key] || '';
 }
@@ -91,6 +99,10 @@ function confidenceResponseLabel(response) {
  * @returns {string}
  */
 function sourceResponseLabel(response) {
+  if (typeof response === 'number') {
+    const opt = CONFIG.sourceOptions[response];
+    return opt ? CONFIG.sourceKeys[opt.key] || '' : '';
+  }
   const key = String(response ?? '');
   return CONFIG.sourceKeys[key] || '';
 }
@@ -163,17 +175,12 @@ function buildRecallTimeline(assignment, recallVideoPaths) {
 
 /**
  * One recall trial: fixation → video+OLD/NEW → boxed hold → confidence →
- * boxed hold → [source → boxed hold if OLD].
+ * boxed hold → [music question for 2 s if OLD, otherwise a 2 s fixation].
  * Confidence and source are logged as separate rows (question column).
  * @param {object} trial
  * @returns {object}
  */
 function buildRecallTrial(trial) {
-  const oldKey = CONFIG.recallKeys.old;
-  const newKey = CONFIG.recallKeys.new;
-  const confidenceChoices = Object.keys(CONFIG.confidenceKeys);
-  const sourceChoices = Object.keys(CONFIG.sourceKeys);
-
   const fixation = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: fixationHtml(),
@@ -191,21 +198,31 @@ function buildRecallTrial(trial) {
   };
 
   const videoAndResponse = {
-    type: jsPsychVideoKeyboardResponse,
+    type: jsPsychVideoButtonResponse,
     stimulus: [trial.videoPath],
-    choices: [oldKey, newKey],
+    choices: ['OLD', 'NEW'],
+    button_html: choiceButtonHtml(),
     controls: false,
     trial_ends_after_video: true,
+    trial_duration: CONFIG.responseTimeoutMs,
     width: 800,
     height: 450,
-    prompt: wrapHtml(buildRecallChoicePrompt('')),
+    prompt: responseTimerPrompt(
+      CONFIG.responseTimeoutMs,
+      'Click OLD or NEW. This moves on after 3 seconds.'
+    ),
     response_ends_trial: true,
     on_finish: (data) => {
       const responseLabel = recallResponseLabel(data.response);
-      const correct =
-        (trial.isOld && responseLabel === 'old') || (!trial.isOld && responseLabel === 'new');
+      const timedOut = !responseLabel;
+      const correct = timedOut
+        ? ''
+        : (trial.isOld && responseLabel === 'old') || (!trial.isOld && responseLabel === 'new')
+          ? 1
+          : 0;
 
       data.recall_response = responseLabel;
+      noteTaskResponse(!timedOut);
 
       DataSaver.logTrial({
         phase: 'recall',
@@ -215,8 +232,9 @@ function buildRecallTrial(trial) {
         condition: trial.encodingCondition || '',
         is_old: trial.isOld ? 1 : 0,
         response: responseLabel,
-        correct: correct ? 1 : 0,
-        rt_ms: data.rt,
+        correct,
+        rt_ms: timedOut ? '' : data.rt,
+        timed_out: timedOut ? 1 : 0,
         mem_score: trial.memScore ?? '',
         mem_alpha: trial.memAlpha ?? '',
       });
@@ -232,19 +250,35 @@ function buildRecallTrial(trial) {
     },
   };
 
-  const recognitionFeedback = choiceFeedbackTrial(() =>
-    wrapHtml(buildRecallChoicePrompt(lastRecognitionLabel()))
-  );
+  const recognitionFeedback = {
+    timeline: [
+      choiceFeedbackTrial(() => wrapHtml(buildRecallChoicePrompt(lastRecognitionLabel()))),
+    ],
+    conditional_function: () => !!lastRecognitionLabel(),
+  };
 
   const confidence = {
-    type: jsPsychHtmlKeyboardResponse,
-    stimulus: () => wrapHtml(buildRecallChoicePrompt(lastRecognitionLabel()) + confidencePromptHtml('')),
-    choices: confidenceChoices,
+    type: jsPsychHtmlButtonResponse,
+    stimulus: () =>
+      wrapHtml(
+        buildRecallChoicePrompt(lastRecognitionLabel()) +
+          '<p style="font-size:28px;margin-top:24px;"><strong>How sure are you?</strong></p>'
+      ),
+    prompt: responseTimerPrompt(
+      CONFIG.responseTimeoutMs,
+      'Click one answer. This moves on after 3 seconds.'
+    ),
+    choices: CONFIG.confidenceOptions.map((opt) => opt.label),
+    button_html: choiceButtonHtml(),
+    trial_duration: CONFIG.responseTimeoutMs,
     response_ends_trial: true,
     on_finish: (data) => {
       const confLabel = confidenceResponseLabel(data.response);
-      data.confidence_key = data.response;
+      const timedOut = !confLabel;
+      const opt = typeof data.response === 'number' ? CONFIG.confidenceOptions[data.response] : null;
+      data.confidence_key = opt ? opt.key : '';
       data.confidence_label = confLabel;
+      noteTaskResponse(!timedOut);
       DataSaver.logTrial({
         phase: 'recall',
         list_num: trial.listNum,
@@ -254,7 +288,8 @@ function buildRecallTrial(trial) {
         is_old: trial.isOld ? 1 : 0,
         question: 'confidence',
         response: confLabel,
-        rt_ms: data.rt,
+        rt_ms: timedOut ? '' : data.rt,
+        timed_out: timedOut ? 1 : 0,
         mem_score: trial.memScore ?? '',
         mem_alpha: trial.memAlpha ?? '',
       });
@@ -270,26 +305,64 @@ function buildRecallTrial(trial) {
     },
   };
 
-  const confidenceFeedback = choiceFeedbackTrial(() => {
-    const last = lastRecallSubphase('confidence');
-    return wrapHtml(
-      buildRecallChoicePrompt(lastRecognitionLabel()) + confidencePromptHtml(last?.confidence_key || '')
-    );
-  });
+  const confidenceFeedback = {
+    timeline: [
+      choiceFeedbackTrial(() => {
+        const last = lastRecallSubphase('confidence');
+        return wrapHtml(
+          buildRecallChoicePrompt(lastRecognitionLabel()) + confidencePromptHtml(last?.confidence_key || '')
+        );
+      }),
+    ],
+    conditional_function: () => {
+      const last = lastRecallSubphase('confidence');
+      return !!last?.confidence_label;
+    },
+  };
+
+  let releaseSourceButtons = null;
+  let notedSourceResponse = false;
 
   const source = {
     timeline: [
       {
-        type: jsPsychHtmlKeyboardResponse,
-        stimulus: wrapHtml(sourcePromptHtml('')),
-        choices: sourceChoices,
-        response_ends_trial: true,
+        type: jsPsychHtmlButtonResponse,
+        stimulus: wrapHtml(
+          '<p style="font-size:28px;margin-top:24px;"><strong>When you saw this video, was there:</strong></p>'
+        ),
+        prompt: responseTimerPrompt(
+          CONFIG.sourceResponseMs,
+          'Click one answer. This stays up for 2 seconds.'
+        ),
+        choices: CONFIG.sourceOptions.map((opt) => opt.label),
+        button_html: choiceButtonHtml(),
+        trial_duration: CONFIG.sourceResponseMs,
+        response_ends_trial: false,
+        on_load: () => {
+          notedSourceResponse = false;
+          releaseSourceButtons = armChoiceButtons('jspsych-html-button-response-btngroup', {
+            onPick: () => {
+              if (notedSourceResponse) return;
+              notedSourceResponse = true;
+              noteTaskResponse(true);
+            },
+          });
+        },
         on_finish: (data) => {
+          if (releaseSourceButtons) {
+            releaseSourceButtons();
+            releaseSourceButtons = null;
+          }
           const srcLabel = sourceResponseLabel(data.response);
-          data.source_key = data.response;
+          const timedOut = !srcLabel;
+          const opt = typeof data.response === 'number' ? CONFIG.sourceOptions[data.response] : null;
+          data.source_key = opt ? opt.key : '';
+          if (!notedSourceResponse) {
+            notedSourceResponse = true;
+            noteTaskResponse(!timedOut);
+          }
           const expected = expectedSourceLabel(trial.encodingCondition);
-          const sourceCorrect =
-            expected && srcLabel ? (srcLabel === expected ? 1 : 0) : '';
+          const sourceCorrect = !timedOut && expected && srcLabel ? (srcLabel === expected ? 1 : 0) : '';
 
           DataSaver.logTrial({
             phase: 'recall',
@@ -301,7 +374,8 @@ function buildRecallTrial(trial) {
             question: 'source',
             response: srcLabel,
             correct: sourceCorrect,
-            rt_ms: data.rt,
+            rt_ms: timedOut ? '' : data.rt,
+            timed_out: timedOut ? 1 : 0,
             mem_score: trial.memScore ?? '',
             mem_alpha: trial.memAlpha ?? '',
           });
@@ -316,16 +390,38 @@ function buildRecallTrial(trial) {
           condition: trial.encodingCondition || '',
         },
       },
-      choiceFeedbackTrial(() => {
-        const last = lastRecallSubphase('source');
-        return wrapHtml(sourcePromptHtml(last?.source_key || ''));
-      }),
     ],
     conditional_function: () => lastRecognitionLabel() === 'old',
   };
 
+  const sourceHold = {
+    timeline: [
+      {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: fixationHtml(),
+        choices: 'NO_KEYS',
+        trial_duration: CONFIG.sourceResponseMs,
+        data: {
+          phase: 'recall',
+          subphase: 'source_hold',
+          list_num: trial.listNum,
+          trial_num: trial.trialNum,
+        },
+      },
+    ],
+    conditional_function: () => lastRecognitionLabel() !== 'old',
+  };
+
   return {
-    timeline: [fixation, videoAndResponse, recognitionFeedback, confidence, confidenceFeedback, source],
+    timeline: [
+      fixation,
+      videoAndResponse,
+      recognitionFeedback,
+      confidence,
+      confidenceFeedback,
+      source,
+      sourceHold,
+    ],
   };
 }
 

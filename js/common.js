@@ -9,6 +9,44 @@ function wrapHtml(inner) {
   return `<div style="max-width:800px;margin:40px auto;font-family:Arial,sans-serif;font-size:26px;line-height:1.5;">${inner}</div>`;
 }
 
+/**
+ * Count consecutive missed task responses and show or hide the warning banner.
+ * Call with true when the participant answers, false when the prompt ends unanswered.
+ * @param {boolean} answered
+ * @returns {boolean} whether the banner is showing
+ */
+function noteTaskResponse(answered) {
+  const limit = CONFIG.attention?.consecutiveMissLimit ?? 3;
+  if (answered) {
+    window._consecutiveMisses = 0;
+  } else {
+    window._consecutiveMisses = (window._consecutiveMisses || 0) + 1;
+  }
+  const show = window._consecutiveMisses >= limit;
+  updateMissedResponseBanner(show);
+  return show;
+}
+
+/**
+ * Fixed red warning at the top of the viewport. Persists across trials until hidden.
+ * @param {boolean} show
+ */
+function updateMissedResponseBanner(show) {
+  if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
+  if (typeof document.createElement !== 'function' || !document.body) return;
+
+  let banner = document.getElementById('missed-response-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'missed-response-banner';
+    banner.setAttribute('role', 'alert');
+    banner.textContent =
+      CONFIG.attention?.bannerText || 'missed responses may disqualify you as a bot';
+    document.body.appendChild(banner);
+  }
+  banner.classList.toggle('visible', !!show);
+}
+
 /** Fixation cross HTML — centered on viewport; size from CONFIG.fixationFontPx. */
 function fixationHtml() {
   const px = CONFIG.fixationFontPx || 160;
@@ -27,6 +65,89 @@ function instructionTrial(html) {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: wrapHtml(html),
     choices: CONFIG.continueKeys,
+    trial_duration: CONFIG.instructionMaxMs,
+  };
+}
+
+/** HTML for one clickable choice button. */
+function choiceButtonHtml() {
+  return '<button class="jspsych-btn response-choice-btn">%choice%</button>';
+}
+
+/**
+ * Shrinking bar shown under a response screen.
+ * @param {number} durationMs
+ * @param {string} hint
+ * @returns {string}
+ */
+function responseTimerPrompt(durationMs, hint) {
+  return (
+    `<p class="response-timer-hint">${hint}</p>` +
+    '<div class="survey-timer-track">' +
+    `<div class="survey-timer-bar" style="animation-duration:${durationMs}ms;"></div>` +
+    '</div>'
+  );
+}
+
+/**
+ * Boxed labels for the brief hold after a click.
+ * @param {string[]} labels
+ * @param {number} selectedIndex
+ * @param {'row'|'column'} [layout]
+ * @returns {string}
+ */
+function clickChoiceRowHtml(labels, selectedIndex, layout) {
+  const stack = layout === 'column';
+  const wrapStyle = stack
+    ? 'display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:16px;'
+    : 'display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin-top:16px;';
+  const items = (labels || [])
+    .map((label, index) => {
+      const selected = index === selectedIndex ? ' selected' : '';
+      return `<span class="orient-choice${selected}">${label}</span>`;
+    })
+    .join('');
+  return `<div style="${wrapStyle}">${items}</div>`;
+}
+
+/**
+ * Box the clicked choice. For a video trial, also ignore clicks after responseTimeoutMs
+ * so a late click does not count while the clip keeps playing.
+ * @param {string} groupId
+ * @param {{deadlineMs?: number, onPick?: function}} [opts]
+ * @returns {function} cleanup
+ */
+function armChoiceButtons(groupId, opts) {
+  const options = opts || {};
+  const group = document.getElementById(groupId);
+  if (!group) return () => {};
+  const buttons = group.querySelectorAll('button');
+  let open = true;
+  const mark = (event) => {
+    if (!open) return;
+    const choice = event.target.closest('[data-choice]');
+    if (!choice || !group.contains(choice)) return;
+    open = false;
+    const button = choice.querySelector('button') || (event.target.closest('button'));
+    if (button) button.classList.add('selected');
+    if (options.onPick) options.onPick(Number(choice.getAttribute('data-choice')));
+  };
+  group.addEventListener('click', mark);
+  const timer =
+    options.deadlineMs > 0
+      ? setTimeout(() => {
+          open = false;
+          buttons.forEach((button) => {
+            button.disabled = true;
+          });
+          group.querySelectorAll('[data-choice]').forEach((el) => {
+            el.style.pointerEvents = 'none';
+          });
+        }, options.deadlineMs)
+      : null;
+  return () => {
+    if (timer) clearTimeout(timer);
+    group.removeEventListener('click', mark);
   };
 }
 
@@ -235,7 +356,7 @@ function buildTestVerificationHtml() {
     [
       'Encoding orienting rows',
       encodingOrienting,
-      `${expectedEncoding} expected (F/J person count)`,
+      `${expectedEncoding} expected (person-count clicks)`,
     ],
     [
       'Survey rating rows',
@@ -269,10 +390,16 @@ function buildTestVerificationHtml() {
 
 if (typeof window !== 'undefined') {
   window.wrapHtml = wrapHtml;
+  window.noteTaskResponse = noteTaskResponse;
+  window.updateMissedResponseBanner = updateMissedResponseBanner;
   window.fixationHtml = fixationHtml;
   window.instructionTrial = instructionTrial;
   window.breakScreen = breakScreen;
   window.choiceRowHtml = choiceRowHtml;
+  window.choiceButtonHtml = choiceButtonHtml;
+  window.responseTimerPrompt = responseTimerPrompt;
+  window.clickChoiceRowHtml = clickChoiceRowHtml;
+  window.armChoiceButtons = armChoiceButtons;
   window.choiceFeedbackTrial = choiceFeedbackTrial;
   window.buildAudioCheckTimeline = buildAudioCheckTimeline;
   window.listStartTrial = listStartTrial;

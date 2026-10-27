@@ -50,7 +50,7 @@ Implementation notes:
 
 ## Remaining work (operator / deploy)
 
-1. Put the real Prolific completion code into `CONFIG.prolific.completionUrl` in `js/config.js` (replace `REPLACE_ME`).
+1. Prolific completion link is set in `CONFIG.prolific.completionUrl` (`cc=CXVPN5MG`).
 2. `git init` (if needed) and push this folder as the root of a Pavlovia jsPsych project; set Results format to CSV; Pilot then Running. See README.
 3. On Prolific: paste the Pavlovia run URL with URL parameters, set completion redirect, restrict to desktop + audio, age-screen for this checkout's bundled birth cohort.
 4. For another year, run `bash tools/create_cohort_repo.sh <YEAR> /path/to/<YEAR>_stimuli`, convert any copied WAV files to MP3 manually, then push that sibling repo to its own Pavlovia project.
@@ -93,3 +93,4 @@ python3 -m http.server 8080
 | `tools/convert_audio.sh` | Legacy WAV→MP3 helper (manual conversion preferred) |
 | `tools/smoke_test.js` | Node assignment / config / datasaver / key-mapping checks |
 | `tools/smoke_test.py` | Manifest count checks |
+| `training/music_memory_analysis_tutorial.ipynb` | Annotated analysis tutorial for the practice files in `training/fake_data/` |

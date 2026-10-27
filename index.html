@@ -15,6 +15,7 @@
     <!-- jsPsych plugins used by this experiment -->
     <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-video-keyboard-response@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-video-button-response@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-audio-keyboard-response@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3"></script>
     <script src="https://unpkg.com/@jspsych/plugin-survey-html-form@1.0.3"></script>
@@ -48,13 +49,58 @@
         border-color: #111111;
         background: #f5f5f5;
       }
-      #jspsych-html-button-response-btngroup {
+      .bot-warning {
+        color: #c00000;
+        font-weight: bold;
+      }
+      #missed-response-banner {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10000;
+        margin: 0;
+        padding: 12px 16px;
+        text-align: center;
+        color: #c00000;
+        background: #ffffff;
+        font-family: Arial, sans-serif;
+        font-size: 22px;
+        font-weight: bold;
+        line-height: 1.3;
+        border-bottom: 3px solid #c00000;
+      }
+      #missed-response-banner.visible {
+        display: block;
+      }
+      #jspsych-html-button-response-btngroup,
+      #jspsych-video-button-response-btngroup {
         display: flex;
         justify-content: center;
         align-items: flex-start;
         gap: 10px;
-        max-width: 720px;
-        margin: 8px auto 0;
+        max-width: 860px;
+        margin: 12px auto 0;
+        flex-wrap: wrap;
+      }
+      .response-choice-btn {
+        min-width: 180px;
+        max-width: 280px;
+        min-height: 72px;
+        font-size: 22px;
+        font-weight: bold;
+        padding: 12px 16px;
+        line-height: 1.25;
+        white-space: normal;
+      }
+      .jspsych-btn.selected {
+        outline: 4px solid #111111;
+        background: #f5f5f5;
+      }
+      .response-timer-hint {
+        font-size: 18px;
+        margin-top: 18px;
       }
       .survey-choice-btn {
         width: 112px;
